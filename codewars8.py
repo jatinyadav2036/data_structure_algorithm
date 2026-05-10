@@ -24,3 +24,6 @@ def format_duration(seconds):
         return parts[0]
 
     return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+a = format_duration(3661)
+print(a)
