@@ -27,3 +27,26 @@ class Solution(object):
             ans = max(ans, right - left + 1)
 
         return ans
+    class Solution(object):
+        def characterReplacement(self, s, k):
+            freq = [0] * 26
+            left = 0
+            maxf = 0
+            ans = 0
+
+            for right in range(len(s)):
+                idx = ord(s[right]) - 65
+                freq[idx] += 1
+
+                if freq[idx] > maxf:
+                    maxf = freq[idx]
+
+                while right - left + 1 - maxf > k:
+                    freq[ord(s[left]) - 65] -= 1
+                    left += 1
+
+                window = right - left + 1
+                if window > ans:
+                    ans = window
+
+            return ans
