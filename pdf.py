@@ -1,2817 +1,1945 @@
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak, KeepTogether
+    HRFlowable, PageBreak
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
-from reportlab.platypus import Flowable
 from xml.sax.saxutils import escape
 
-# ── Color palette ──────────────────────────────────────────────────────────────
-DARK_BLUE   = colors.HexColor('#1a237e')
-MED_BLUE    = colors.HexColor('#283593')
-ACCENT_BLUE = colors.HexColor('#1565c0')
-LIGHT_BLUE  = colors.HexColor('#e3f2fd')
-TEAL        = colors.HexColor('#00695c')
-LIGHT_TEAL  = colors.HexColor('#e0f2f1')
-RED         = colors.HexColor('#b71c1c')
-LIGHT_RED   = colors.HexColor('#ffebee')
-ORANGE      = colors.HexColor('#e65100')
-LIGHT_ORANGE= colors.HexColor('#fff3e0')
-PURPLE      = colors.HexColor('#4a148c')
-LIGHT_PURPLE= colors.HexColor('#f3e5f5')
-GREEN       = colors.HexColor('#1b5e20')
-LIGHT_GREEN = colors.HexColor('#e8f5e9')
-YELLOW_BG   = colors.HexColor('#fffde7')
-DARK_GRAY   = colors.HexColor('#212121')
-MED_GRAY    = colors.HexColor('#424242')
-LIGHT_GRAY  = colors.HexColor('#f5f5f5')
-CODE_BG     = colors.HexColor('#1e1e2e')
-CODE_TEXT   = colors.HexColor('#cdd6f4')
-WHITE       = colors.white
-
+DARK_BLUE    = colors.HexColor('#0d1b4b')
+MED_BLUE     = colors.HexColor('#1a3a6b')
+ACCENT_BLUE  = colors.HexColor('#1565c0')
+LIGHT_BLUE   = colors.HexColor('#e3f2fd')
+TEAL         = colors.HexColor('#00695c')
+LIGHT_TEAL   = colors.HexColor('#e0f2f1')
+RED          = colors.HexColor('#b71c1c')
+LIGHT_RED    = colors.HexColor('#ffebee')
+ORANGE       = colors.HexColor('#e65100')
+LIGHT_ORANGE = colors.HexColor('#fff3e0')
+PURPLE       = colors.HexColor('#4a148c')
+LIGHT_PURPLE = colors.HexColor('#f3e5f5')
+GREEN        = colors.HexColor('#1b5e20')
+LIGHT_GREEN  = colors.HexColor('#e8f5e9')
+YELLOW_BG    = colors.HexColor('#fffde7')
+DARK_GRAY    = colors.HexColor('#212121')
+MED_GRAY     = colors.HexColor('#424242')
+LIGHT_GRAY   = colors.HexColor('#f5f5f5')
+CODE_BG      = colors.HexColor('#1e1e2e')
+CODE_TEXT    = colors.HexColor('#cdd6f4')
+WHITE        = colors.white
+GOLD         = colors.HexColor('#ffcc02')
 W, H = A4
 
-# ── Styles ─────────────────────────────────────────────────────────────────────
-def make_styles():
-    base = getSampleStyleSheet()
-    s = {}
+def S(name):
+    styles = {
+        'cover_title': ParagraphStyle('ct', fontName='Helvetica-Bold', fontSize=26,
+            textColor=WHITE, alignment=TA_CENTER, spaceAfter=6, leading=32),
+        'cover_sub': ParagraphStyle('cs', fontName='Helvetica', fontSize=12,
+            textColor=colors.HexColor('#bbdefb'), alignment=TA_CENTER, spaceAfter=4, leading=17),
+        'cover_code': ParagraphStyle('cc', fontName='Helvetica-Bold', fontSize=11,
+            textColor=GOLD, alignment=TA_CENTER, spaceAfter=4),
+        'module_banner': ParagraphStyle('mb', fontName='Helvetica-Bold', fontSize=17,
+            textColor=WHITE, alignment=TA_CENTER, spaceAfter=4, leading=22),
+        'topic_hdr': ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=14,
+            textColor=WHITE, alignment=TA_LEFT, spaceAfter=2, leading=20, leftIndent=8),
+        'subtopic': ParagraphStyle('st', fontName='Helvetica-Bold', fontSize=11,
+            textColor=DARK_BLUE, spaceBefore=10, spaceAfter=4, leading=15),
+        'body': ParagraphStyle('bd', fontName='Helvetica', fontSize=9.5,
+            textColor=DARK_GRAY, spaceBefore=3, spaceAfter=3, leading=14, alignment=TA_JUSTIFY),
+        'body_bold': ParagraphStyle('bb', fontName='Helvetica-Bold', fontSize=9.5,
+            textColor=MED_GRAY, spaceBefore=2, spaceAfter=2, leading=14),
+        'bullet': ParagraphStyle('bu', fontName='Helvetica', fontSize=9.5,
+            textColor=DARK_GRAY, spaceBefore=2, spaceAfter=2, leading=14,
+            leftIndent=14, firstLineIndent=-10),
+        'code': ParagraphStyle('co', fontName='Courier', fontSize=8.2,
+            textColor=CODE_TEXT, spaceBefore=1, spaceAfter=1, leading=12, leftIndent=6),
+        'q_hdr': ParagraphStyle('qh', fontName='Helvetica-Bold', fontSize=10,
+            textColor=TEAL, spaceBefore=8, spaceAfter=3, leading=14),
+        'ans': ParagraphStyle('an', fontName='Helvetica', fontSize=9.5,
+            textColor=DARK_GRAY, spaceBefore=2, spaceAfter=2, leading=14,
+            alignment=TA_JUSTIFY, leftIndent=8),
+        'note': ParagraphStyle('no', fontName='Helvetica-BoldOblique', fontSize=9,
+            textColor=RED, spaceBefore=4, spaceAfter=4, leading=13, leftIndent=8),
+        'toc_item': ParagraphStyle('ti', fontName='Helvetica', fontSize=10,
+            textColor=MED_BLUE, spaceBefore=3, spaceAfter=3, leading=14, leftIndent=10),
+        'toc_title': ParagraphStyle('tt', fontName='Helvetica-Bold', fontSize=14,
+            textColor=DARK_BLUE, spaceBefore=0, spaceAfter=8, alignment=TA_CENTER),
+        'tip': ParagraphStyle('tp', fontName='Helvetica-Oblique', fontSize=9,
+            textColor=PURPLE, spaceBefore=3, spaceAfter=3, leading=13, leftIndent=8),
+    }
+    return styles[name]
 
-    s['cover_title'] = ParagraphStyle('cover_title',
-        fontName='Helvetica-Bold', fontSize=28, textColor=WHITE,
-        alignment=TA_CENTER, spaceAfter=8, leading=34)
+def hr(color=ACCENT_BLUE, t=1):
+    return HRFlowable(width='100%', thickness=t, color=color, spaceAfter=4, spaceBefore=4)
 
-    s['cover_sub'] = ParagraphStyle('cover_sub',
-        fontName='Helvetica', fontSize=13, textColor=colors.HexColor('#bbdefb'),
-        alignment=TA_CENTER, spaceAfter=4, leading=18)
+def vs(h=6): return Spacer(1, h)
 
-    s['cover_code'] = ParagraphStyle('cover_code',
-        fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor('#ffcc02'),
-        alignment=TA_CENTER, spaceAfter=4)
-
-    s['module_banner'] = ParagraphStyle('module_banner',
-        fontName='Helvetica-Bold', fontSize=18, textColor=WHITE,
-        alignment=TA_CENTER, spaceAfter=4, leading=22)
-
-    s['topic_header'] = ParagraphStyle('topic_header',
-        fontName='Helvetica-Bold', fontSize=15, textColor=WHITE,
-        alignment=TA_LEFT, spaceAfter=2, leading=20,
-        leftIndent=8)
-
-    s['subtopic'] = ParagraphStyle('subtopic',
-        fontName='Helvetica-Bold', fontSize=11, textColor=DARK_BLUE,
-        spaceBefore=10, spaceAfter=4, leading=15)
-
-    s['body'] = ParagraphStyle('body',
-        fontName='Helvetica', fontSize=9.5, textColor=DARK_GRAY,
-        spaceBefore=3, spaceAfter=3, leading=14, alignment=TA_JUSTIFY)
-
-    s['body_bold'] = ParagraphStyle('body_bold',
-        fontName='Helvetica-Bold', fontSize=9.5, textColor=MED_GRAY,
-        spaceBefore=2, spaceAfter=2, leading=14)
-
-    s['bullet'] = ParagraphStyle('bullet',
-        fontName='Helvetica', fontSize=9.5, textColor=DARK_GRAY,
-        spaceBefore=2, spaceAfter=2, leading=14,
-        leftIndent=14, firstLineIndent=-10)
-
-    s['code'] = ParagraphStyle('code',
-        fontName='Courier', fontSize=8.5, textColor=CODE_TEXT,
-        spaceBefore=1, spaceAfter=1, leading=12,
-        leftIndent=6)
-
-    s['q_header'] = ParagraphStyle('q_header',
-        fontName='Helvetica-Bold', fontSize=10, textColor=TEAL,
-        spaceBefore=8, spaceAfter=3, leading=14)
-
-    s['answer'] = ParagraphStyle('answer',
-        fontName='Helvetica', fontSize=9.5, textColor=DARK_GRAY,
-        spaceBefore=2, spaceAfter=2, leading=14, alignment=TA_JUSTIFY,
-        leftIndent=8)
-
-    s['note'] = ParagraphStyle('note',
-        fontName='Helvetica-BoldOblique', fontSize=9, textColor=RED,
-        spaceBefore=4, spaceAfter=4, leading=13,
-        leftIndent=8)
-
-    s['percent'] = ParagraphStyle('percent',
-        fontName='Helvetica-Bold', fontSize=9, textColor=ORANGE,
-        spaceBefore=0, spaceAfter=0)
-
-    s['toc_item'] = ParagraphStyle('toc_item',
-        fontName='Helvetica', fontSize=10, textColor=MED_BLUE,
-        spaceBefore=3, spaceAfter=3, leading=14, leftIndent=10)
-
-    s['toc_title'] = ParagraphStyle('toc_title',
-        fontName='Helvetica-Bold', fontSize=14, textColor=DARK_BLUE,
-        spaceBefore=0, spaceAfter=8, alignment=TA_CENTER)
-
-    s['tip'] = ParagraphStyle('tip',
-        fontName='Helvetica-Oblique', fontSize=9, textColor=PURPLE,
-        spaceBefore=3, spaceAfter=3, leading=13, leftIndent=8)
-
-    return s
-
-S = make_styles()
-
-# ── Helper Flowables ────────────────────────────────────────────────────────────
-def hr(color=ACCENT_BLUE, thickness=1):
-    return HRFlowable(width='100%', thickness=thickness, color=color, spaceAfter=4, spaceBefore=4)
-
-def vspace(h=6):
-    return Spacer(1, h)
-
-def colored_box(text, bg=LIGHT_BLUE, border=ACCENT_BLUE, style_key='body'):
-    data = [[Paragraph(text, S[style_key])]]
-    t = Table(data, colWidths=[W - 4*cm])
+def cbox(text, bg=LIGHT_BLUE, border=ACCENT_BLUE, sty='body'):
+    t = Table([[Paragraph(text, S(sty))]], colWidths=[W-4*cm])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), bg),
-        ('BOX', (0,0), (-1,-1), 1, border),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('BACKGROUND',(0,0),(-1,-1),bg),('BOX',(0,0),(-1,-1),1,border),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
+        ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
     ]))
     return t
 
-def code_block(lines):
-    items = []
-    data = [[Paragraph(escape(l), S['code'])] for l in lines]
-    t = Table(data, colWidths=[W - 4*cm])
+def cblock(lines):
+    safe = []
+    for l in lines:
+        l2 = l.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+        safe.append([Paragraph(l2, S('code'))])
+    t = Table(safe, colWidths=[W-4*cm])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), CODE_BG),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#45475a')),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('ROWPADDING', (0,0), (-1,-1), 1),
+        ('BACKGROUND',(0,0),(-1,-1),CODE_BG),
+        ('BOX',(0,0),(-1,-1),1,colors.HexColor('#45475a')),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),6),
+        ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
     ]))
     return t
 
-def topic_header_box(num, title, pct):
-    left = Paragraph(f'TOPIC {num}: {title}', S['topic_header'])
-    right = Paragraph(f'★ Exam: {pct}%', S['percent'])
-    right_style = ParagraphStyle('rp', fontName='Helvetica-Bold', fontSize=10,
-                                  textColor=colors.HexColor('#ffcc02'), alignment=TA_LEFT)
-    right = Paragraph(f'★ Exam Probability: {pct}%', right_style)
-    data = [[left, right]]
-    t = Table(data, colWidths=[W-5.5*cm, 3.5*cm])
+def topic_box(num, title, pct):
+    rp = ParagraphStyle('rp', fontName='Helvetica-Bold', fontSize=10, textColor=GOLD, alignment=TA_LEFT)
+    t = Table([[Paragraph(f'TOPIC {num}: {title}', S('topic_hdr')),
+                Paragraph(f'* Exam Probability: {pct}%', rp)]],
+              colWidths=[W-5.5*cm, 3.5*cm])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), DARK_BLUE),
-        ('LEFTPADDING', (0,0), (0,-1), 12),
-        ('RIGHTPADDING', (-1,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 10),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BACKGROUND',(0,0),(-1,-1),DARK_BLUE),
+        ('LEFTPADDING',(0,0),(0,-1),12),('RIGHTPADDING',(-1,0),(-1,-1),10),
+        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ]))
     return t
 
-def qa_block(marks, question, answer_paras):
-    """Build a Q&A block with colored question and structured answer."""
-    mark_colors = {1.5: (LIGHT_TEAL, TEAL), 5: (LIGHT_ORANGE, ORANGE),
-                   10: (LIGHT_PURPLE, PURPLE), 15: (LIGHT_RED, RED)}
-    bg, border = mark_colors.get(marks, (LIGHT_GRAY, MED_GRAY))
-    mark_labels = {1.5:'SHORT (1.5 Marks | ~50 words)', 5:'MEDIUM (5 Marks | 300-500 words)',
-                   10:'LONG (10 Marks | 500-700 words)', 15:'ESSAY (15 Marks | 700-1000 words)'}
-    label = mark_labels.get(marks, f'{marks} Marks')
-    elems = []
-    q_data = [[Paragraph(f'<b>Q [{label}]:</b> {question}', S['q_header'])]]
-    qt = Table(q_data, colWidths=[W-4*cm])
+def qa(marks, question, paras):
+    mc = {1.5:(LIGHT_TEAL,TEAL), 5:(LIGHT_ORANGE,ORANGE),
+          10:(LIGHT_PURPLE,PURPLE), 15:(LIGHT_RED,RED)}
+    bg, border = mc.get(marks, (LIGHT_GRAY, MED_GRAY))
+    ml = {1.5:'SHORT (1.5 Marks | ~50 words)', 5:'MEDIUM (5 Marks | 300-500 words)',
+          10:'LONG (10 Marks | 500-700 words)', 15:'ESSAY (15 Marks | 700-1000 words)'}
+    label = ml.get(marks, f'{marks} Marks')
+    qt = Table([[Paragraph(f'<b>Q [{label}]:</b> {question}', S('q_hdr'))]], colWidths=[W-4*cm])
     qt.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), bg),
-        ('BOX', (0,0), (-1,-1), 1.5, border),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('BACKGROUND',(0,0),(-1,-1),bg),('BOX',(0,0),(-1,-1),1.5,border),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
+        ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
     ]))
-    elems.append(qt)
-    for p in answer_paras:
-        elems.append(p)
-    elems.append(vspace(4))
-    return elems
+    return [qt] + paras + [vs(4)]
 
-def simple_table(headers, rows, col_widths=None):
-    if col_widths is None:
-        col_widths = [(W-4*cm)/len(headers)] * len(headers)
-    data = [[Paragraph(f'<b>{h}</b>', S['body_bold']) for h in headers]]
+def stbl(headers, rows, cw=None):
+    if cw is None:
+        cw = [(W-4*cm)/len(headers)]*len(headers)
+    data = [[Paragraph(f'<b>{h}</b>', S('body_bold')) for h in headers]]
     for row in rows:
-        data.append([Paragraph(str(c), S['body']) for c in row])
-    t = Table(data, colWidths=col_widths)
+        data.append([Paragraph(str(c), S('body')) for c in row])
+    t = Table(data, colWidths=cw)
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), DARK_BLUE),
-        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,0), (-1,0), 9),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, LIGHT_GRAY]),
-        ('BOX', (0,0), (-1,-1), 1, ACCENT_BLUE),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#b0bec5')),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BACKGROUND',(0,0),(-1,0),DARK_BLUE),('TEXTCOLOR',(0,0),(-1,0),WHITE),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,0),9),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[WHITE,LIGHT_GRAY]),
+        ('BOX',(0,0),(-1,-1),1,ACCENT_BLUE),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#b0bec5')),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ]))
     return t
 
-# ══════════════════════════════════════════════════════════════════════════════
-# BUILD DOCUMENT
-# ══════════════════════════════════════════════════════════════════════════════
-def build_pdf():
-    doc = SimpleDocTemplate(
-    'Module1_DAP_ExamNotes.pdf',
-        pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm
-    )
+# ═══════════════════════════════════════════════════════════════════
+def build():
+    doc = SimpleDocTemplate('Module3_Statistics_ExamNotes.pdf',
+        pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=2*cm, bottomMargin=2*cm)
     story = []
 
-    # ── COVER PAGE ────────────────────────────────────────────────────────────
-    story.append(vspace(60))
-    cover_data = [[Paragraph('DATA ANALYTICS<br/>USING PYTHON', S['cover_title'])]]
-    ct = Table(cover_data, colWidths=[W-4*cm])
-    ct.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), DARK_BLUE),
-        ('TOPPADDING', (0,0), (-1,-1), 24),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 24),
-        ('LEFTPADDING', (0,0), (-1,-1), 20),
-        ('RIGHTPADDING', (0,0), (-1,-1), 20),
-    ]))
-    story.append(ct)
-    story.append(vspace(12))
+    # ── COVER ──────────────────────────────────────────────────────
+    story.append(vs(45))
+    ct = Table([[Paragraph('DATA ANALYTICS USING PYTHON', S('cover_title'))]], colWidths=[W-4*cm])
+    ct.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),DARK_BLUE),
+        ('TOPPADDING',(0,0),(-1,-1),22),('BOTTOMPADDING',(0,0),(-1,-1),22),
+        ('LEFTPADDING',(0,0),(-1,-1),20)]))
+    story.append(ct); story.append(vs(10))
 
-    info_data = [
-        [Paragraph('CODE: PCC-IT-601-A-2024', S['cover_code'])],
-        [Paragraph('B.Tech 6th Semester | Maximum Marks: 75', S['cover_sub'])],
-        [Paragraph('MODULE 1 — PYTHON FUNDAMENTALS &amp; OBJECTS IN PYTHON', S['cover_sub'])],
-        [Paragraph('Complete Exam Notes with All Questions &amp; Answers', S['cover_sub'])],
-    ]
-    it = Table(info_data, colWidths=[W-4*cm])
-    it.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), MED_BLUE),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 16),
-        ('RIGHTPADDING', (0,0), (-1,-1), 16),
-    ]))
-    story.append(it)
-    story.append(vspace(20))
+    it = Table([
+        [Paragraph('CODE: PCC-IT-601-A-2024', S('cover_code'))],
+        [Paragraph('B.Tech 6th Semester  |  Maximum Marks: 75', S('cover_sub'))],
+        [Paragraph('MODULE 3 — INTRODUCTION TO DATA ANALYTICS', S('cover_sub'))],
+        [Paragraph('Statistics, Probability, Hypothesis Testing, ANOVA, Chi-Square', S('cover_sub'))],
+        [Paragraph('Complete Exam Notes with All Questions and Answers', S('cover_sub'))],
+    ], colWidths=[W-4*cm])
+    it.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),MED_BLUE),
+        ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
+        ('LEFTPADDING',(0,0),(-1,-1),16)]))
+    story.append(it); story.append(vs(18))
 
-    topics_grid = [
-        ['1. Lists (8%)', '2. Dictionaries (8%)', '3. Functions (10%)'],
-        ['4. File Handling (7%)', '5. Class &amp; Instance Attrs (9%)', '6. Inheritance (12%)'],
-        ['7. MRO (8%)', '8. Magic Methods (10%)', '9. Metaclasses (7%)'],
-        ['10. Abstract Classes (7%)', '11. Exception Handling (9%)', '12. Packages (5%)'],
-    ]
-    tg_data = [[Paragraph(c, S['cover_sub']) for c in row] for row in topics_grid]
-    tg = Table(tg_data, colWidths=[(W-4*cm)/3]*3)
+    tg = Table([
+        [Paragraph('1. Descriptive Statistics (12%)', S('cover_sub')),
+         Paragraph('2. Probability Distributions (12%)', S('cover_sub')),
+         Paragraph('3. Inferential Statistics (10%)', S('cover_sub'))],
+        [Paragraph('4. Hypothesis Testing (15%)', S('cover_sub')),
+         Paragraph('5. Two-Sample Testing (10%)', S('cover_sub')),
+         Paragraph('6. One-Way ANOVA (12%)', S('cover_sub'))],
+        [Paragraph('7. Two-Way ANOVA (10%)', S('cover_sub')),
+         Paragraph('8. Permutation Tests (8%)', S('cover_sub')),
+         Paragraph('9. Chi-Square Test (11%)', S('cover_sub'))],
+    ], colWidths=[(W-4*cm)/3]*3)
     tg.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0d1b5e')),
-        ('TEXTCOLOR', (0,0), (-1,-1), WHITE),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#5c6bc0')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#3949ab')),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#0d1b5e')),
+        ('TEXTCOLOR',(0,0),(-1,-1),WHITE),
+        ('BOX',(0,0),(-1,-1),1,colors.HexColor('#5c6bc0')),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#3949ab')),
+        ('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8),
+        ('LEFTPADDING',(0,0),(-1,-1),6),('ALIGN',(0,0),(-1,-1),'CENTER'),
     ]))
-    story.append(tg)
-    story.append(vspace(30))
-    story.append(Paragraph('⚡ TOP PRIORITY TOPICS: Inheritance (12%) | Magic Methods (10%) | Functions (10%) | Exception Handling (9%) | Class Attributes (9%)', S['note']))
+    story.append(tg); story.append(vs(26))
+    story.append(Paragraph(
+        'TOP PRIORITY: Hypothesis Testing (15%) | Descriptive Stats (12%) | '
+        'Probability Distributions (12%) | One-Way ANOVA (12%) | Chi-Square (11%)',
+        S('note')))
     story.append(PageBreak())
 
-    # ── TABLE OF CONTENTS ─────────────────────────────────────────────────────
-    story.append(Paragraph('TABLE OF CONTENTS', S['toc_title']))
-    story.append(hr(DARK_BLUE, 2))
-    story.append(vspace(6))
-    toc_items = [
-        ('TOPIC 1', 'LISTS IN PYTHON', '8%'),
-        ('TOPIC 2', 'DICTIONARIES IN PYTHON', '8%'),
-        ('TOPIC 3', 'FUNCTIONS IN PYTHON', '10%'),
-        ('TOPIC 4', 'FILE HANDLING IN PYTHON', '7%'),
-        ('TOPIC 5', 'CLASS &amp; INSTANCE ATTRIBUTES', '9%'),
-        ('TOPIC 6', 'INHERITANCE &amp; MULTIPLE INHERITANCE', '12%'),
-        ('TOPIC 7', 'METHOD RESOLUTION ORDER (MRO)', '8%'),
-        ('TOPIC 8', 'MAGIC METHODS &amp; OPERATOR OVERLOADING', '10%'),
-        ('TOPIC 9', 'METACLASSES IN PYTHON', '7%'),
-        ('TOPIC 10', 'ABSTRACT &amp; INNER CLASSES', '7%'),
-        ('TOPIC 11', 'EXCEPTION HANDLING', '9%'),
-        ('TOPIC 12', 'MODULAR PROGRAMS &amp; PACKAGES', '5%'),
-    ]
-    for num, title, pct in toc_items:
-        row_data = [[
-            Paragraph(f'<b>{num}</b>', S['toc_item']),
-            Paragraph(title, S['toc_item']),
-            Paragraph(f'<b>{pct}</b>', S['toc_item']),
-        ]]
-        rt = Table(row_data, colWidths=[2.5*cm, W-7.5*cm, 2*cm])
-        rt.setStyle(TableStyle([
-            ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#bbdefb')),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ]))
+    # ── TOC ────────────────────────────────────────────────────────
+    story.append(Paragraph('TABLE OF CONTENTS', S('toc_title')))
+    story.append(hr(DARK_BLUE, 2)); story.append(vs(6))
+    for num, title, pct in [
+        ('TOPIC 1','DESCRIPTIVE STATISTICS','12%'),
+        ('TOPIC 2','PROBABILITY DISTRIBUTIONS','12%'),
+        ('TOPIC 3','INFERENTIAL STATISTICS — OVERVIEW','10%'),
+        ('TOPIC 4','HYPOTHESIS TESTING — COMPLETE GUIDE','15%'),
+        ('TOPIC 5','TWO-SAMPLE TESTING','10%'),
+        ('TOPIC 6','ONE-WAY ANOVA','12%'),
+        ('TOPIC 7','TWO-WAY ANOVA','10%'),
+        ('TOPIC 8','PERMUTATION AND RANDOMIZATION TEST','8%'),
+        ('TOPIC 9','CHI-SQUARE TEST','11%'),
+    ]:
+        rt = Table([[Paragraph(f'<b>{num}</b>',S('toc_item')),
+                     Paragraph(title,S('toc_item')),
+                     Paragraph(f'<b>{pct}</b>',S('toc_item'))]],
+                   colWidths=[2.5*cm, W-7.5*cm, 2*cm])
+        rt.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),0.5,colors.HexColor('#bbdefb')),
+            ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3)]))
         story.append(rt)
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 1: LISTS
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(1, 'LISTS IN PYTHON', 8))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is a List?', S['subtopic']))
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 1: DESCRIPTIVE STATISTICS
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(1,'DESCRIPTIVE STATISTICS',12))
+    story.append(vs(8))
+    story.append(Paragraph('What is Descriptive Statistics?', S('subtopic')))
     story.append(Paragraph(
-        'A <b>list</b> in Python is an <b>ordered</b>, <b>mutable</b> (changeable), and <b>heterogeneous</b> '
-        'collection of items enclosed in square brackets <b>[ ]</b>. It is the most fundamental and widely '
-        'used data structure in Python. Lists can store integers, floats, strings, other lists, or any Python '
-        'object. Lists maintain the order of insertion — the first element you put in will always be at '
-        'position 0 (index 0). Lists are the backbone of data processing, NumPy arrays, Pandas Series, '
-        'and all data analytics pipelines.', S['body']))
-    story.append(vspace(4))
-    story.append(colored_box(
-        '🔑 KEY RULE: Lists are ORDERED (index-based) | MUTABLE (can change after creation) | '
-        'ALLOWS DUPLICATES | Uses SQUARE BRACKETS [ ] | HETEROGENEOUS (mixed types allowed)',
+        '<b>Descriptive statistics</b> is the branch of statistics that deals with '
+        '<b>summarizing, organizing, and presenting data</b> in a meaningful way. '
+        'It describes the basic features of data — its central tendency, spread, and shape — '
+        'WITHOUT drawing any conclusions beyond the data itself. '
+        'It answers: "What does the data look like?" '
+        'It is the first step in any data analytics project.', S('body')))
+    story.append(vs(4))
+    story.append(cbox(
+        'KEY DIVISION: Descriptive stats DESCRIBES data. '
+        'Inferential stats DRAWS CONCLUSIONS from data. '
+        'Descriptive stats = measures of central tendency + measures of spread + shape measures.',
         LIGHT_BLUE, ACCENT_BLUE))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Creating Lists — All Ways', S['subtopic']))
-    story.append(code_block([
-        '# 1. Empty list',
-        'empty = []',
-        '',
-        '# 2. Integer list',
-        'nums = [1, 2, 3, 4, 5]',
-        '',
-        '# 3. String list',
-        'names = ["Alice", "Bob", "Charlie"]',
-        '',
-        '# 4. Mixed types (heterogeneous)',
-        'mixed = [1, "hello", 3.14, True, None]',
-        '',
-        '# 5. Nested / 2D list',
-        'nested = [[1,2,3], [4,5,6], [7,8,9]]',
-        '',
-        '# 6. From range',
-        'from_range = list(range(1, 11))   # [1,2,3,...,10]',
-        '',
-        '# 7. From string',
-        'chars = list("python")            # ["p","y","t","h","o","n"]',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('List Indexing and Slicing', S['subtopic']))
+    story.append(Paragraph('Measures of Central Tendency', S('subtopic')))
     story.append(Paragraph(
-        'Python lists use <b>zero-based indexing</b>. The first element is at index 0. '
-        '<b>Negative indexing</b> allows access from the end: -1 is the last element, -2 is second last. '
-        '<b>Slicing</b> extracts a portion using <b>list[start:stop:step]</b> format. '
-        'start is inclusive, stop is exclusive.', S['body']))
-    story.append(code_block([
-        'fruits = ["apple", "banana", "cherry", "date", "elderberry"]',
-        '',
-        '# Positive indexing',
-        'fruits[0]    # "apple"   — first element',
-        'fruits[1]    # "banana"  — second element',
-        'fruits[4]    # "elderberry" — last by positive index',
-        '',
-        '# Negative indexing',
-        'fruits[-1]   # "elderberry" — last element',
-        'fruits[-2]   # "date"       — second last',
-        '',
-        '# Slicing: list[start:stop:step]',
-        'fruits[1:3]   # ["banana", "cherry"] — index 1 to 2 (stop excluded)',
-        'fruits[::2]   # ["apple", "cherry", "elderberry"] — every 2nd element',
-        'fruits[::-1]  # Reversed: ["elderberry","date","cherry","banana","apple"]',
-        'fruits[1:4:2] # ["banana", "date"] — from 1 to 3, step 2',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('All Essential List Methods', S['subtopic']))
-    story.append(simple_table(
-        ['Method', 'What it Does', 'Example'],
+        'Measures of central tendency describe the <b>center/typical value</b> of a dataset. '
+        'The three main measures are Mean, Median, and Mode.', S('body')))
+    story.append(stbl(
+        ['Measure','Formula / Definition','Best Used When','Affected by Outliers?'],
         [
-            ['append(x)', 'Adds x to the END of the list', 'lst.append(5) → adds 5 at end'],
-            ['insert(i, x)', 'Inserts x at position i (shifts others right)', 'lst.insert(2, "hi")'],
-            ['extend(iterable)', 'Adds ALL items of another list/iterable to end', 'lst.extend([6,7,8])'],
-            ['remove(x)', 'Removes FIRST occurrence of x (raises ValueError if not found)', 'lst.remove(3)'],
-            ['pop()', 'Removes & returns LAST element', 'lst.pop()'],
-            ['pop(i)', 'Removes & returns element at index i', 'lst.pop(0)'],
-            ['clear()', 'Removes ALL elements — list becomes empty []', 'lst.clear()'],
-            ['index(x)', 'Returns index of first occurrence of x', 'lst.index(5)'],
-            ['count(x)', 'Counts how many times x appears in list', 'lst.count(2)'],
-            ['sort()', 'Sorts list in ascending order IN-PLACE', 'lst.sort()'],
-            ['sort(reverse=True)', 'Sorts in descending order IN-PLACE', 'lst.sort(reverse=True)'],
-            ['reverse()', 'Reverses the list in-place', 'lst.reverse()'],
-            ['copy()', 'Returns a shallow copy of the list', 'lst2 = lst.copy()'],
-            ['len(lst)', 'Returns total number of elements (built-in)', 'len(lst)'],
-            ['sorted(lst)', 'Returns NEW sorted list (does NOT modify original)', 'sorted(lst)'],
-            ['sum(lst)', 'Returns sum of all numeric elements', 'sum([1,2,3]) → 6'],
-            ['max(lst)', 'Returns maximum element', 'max([3,1,5]) → 5'],
-            ['min(lst)', 'Returns minimum element', 'min([3,1,5]) → 1'],
+            ['Mean (Average)','Sum of all values / Number of values. x-bar = (x1+x2+...+xn)/n',
+             'Data is symmetric, no extreme outliers','Yes — highly sensitive'],
+            ['Median','Middle value when data is sorted. If n is even: average of two middle values',
+             'Data has outliers or is skewed','No — robust to outliers'],
+            ['Mode','Most frequently occurring value. A dataset can have no mode, one mode, or multiple modes',
+             'Categorical data, finding most common value','No'],
+            ['Weighted Mean','Sum(wi*xi) / Sum(wi) — each value has a weight',
+             'Values have different importance/frequency','Yes'],
+            ['Geometric Mean','(x1*x2*...*xn)^(1/n) — nth root of product',
+             'Growth rates, ratios, financial returns','Less than arithmetic mean'],
         ],
-        [3.5*cm, 6.5*cm, 5*cm]
+        [2.5*cm, 4.5*cm, 3.5*cm, 3.5*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('List Comprehension', S['subtopic']))
+    story.append(Paragraph('Measures of Spread (Dispersion)', S('subtopic')))
     story.append(Paragraph(
-        'List Comprehension is a concise, elegant, and faster way to create lists using a '
-        '<b>single line</b> with a for loop inside brackets. It is considered very Pythonic '
-        '(the preferred Python way). It is faster than regular loops and more readable.',
-        S['body']))
-    story.append(Paragraph('<b>Syntax:</b>  [expression  for  item  in  iterable  if  condition]', S['body_bold']))
-    story.append(code_block([
-        '# 1. Squares of 1 to 5',
-        'squares = [x**2 for x in range(1, 6)]         # [1, 4, 9, 16, 25]',
-        '',
-        '# 2. Even numbers from 0 to 18',
-        'evens = [x for x in range(20) if x % 2 == 0]  # [0,2,4,...,18]',
-        '',
-        '# 3. Convert strings to uppercase',
-        'upper = [s.upper() for s in ["a","b","c"]]    # ["A","B","C"]',
-        '',
-        '# 4. Flatten nested list',
-        'flat = [x for row in [[1,2],[3,4]] for x in row]  # [1,2,3,4]',
-        '',
-        '# 5. Filter and transform together',
-        'result = [x**2 for x in range(10) if x % 2 == 0]  # [0,4,16,36,64]',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('2D Lists (Matrix Operations)', S['subtopic']))
-    story.append(Paragraph(
-        'A <b>2D list</b> (or matrix) is a list of lists. Very useful for representing grids, tables, '
-        'or matrices in data analytics. Access element at row r, column c using <b>matrix[r][c]</b>.',
-        S['body']))
-    story.append(code_block([
-        'matrix = [[1,2,3],',
-        '          [4,5,6],',
-        '          [7,8,9]]',
-        '',
-        'print(matrix[0][0])   # 1  — row 0, col 0',
-        'print(matrix[1][2])   # 6  — row 1, col 2',
-        'print(matrix[2][1])   # 8  — row 2, col 1',
-        '',
-        '# Iterate all rows',
-        'for row in matrix:',
-        '    print(row)',
-        '',
-        '# Iterate all elements',
-        'for row in matrix:',
-        '    for elem in row:',
-        '        print(elem, end=" ")   # 1 2 3 4 5 6 7 8 9',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A for Lists
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — LISTS', S['subtopic']))
-
-    elems = qa_block(1.5, 'What is a list in Python? Give an example.', [
-        Paragraph('A <b>list</b> in Python is an <b>ordered</b>, <b>mutable</b> collection of elements enclosed in square brackets [ ]. It can store <b>heterogeneous data types</b> (integers, strings, floats, etc.) and allows duplicate values. Lists support indexing and slicing for easy access.', S['answer']),
-        Paragraph('<b>Example:</b>  fruits = ["apple", "banana", "cherry"]', S['answer']),
-        Paragraph('Access: fruits[0] gives "apple". fruits[-1] gives "cherry". Lists are the most versatile built-in data structure in Python.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(1.5, 'Write a Python code to concatenate two lists.', [
-        Paragraph('Two lists in Python can be concatenated using the <b>+ operator</b> or the <b>extend()</b> method.', S['answer']),
-        code_block([
-            'list1 = [1, 2, 3]',
-            'list2 = [4, 5, 6]',
-            '',
-            '# Method 1: + operator (creates new list)',
-            'result = list1 + list2',
-            'print(result)   # [1, 2, 3, 4, 5, 6]',
-            '',
-            '# Method 2: extend() (modifies list1 in-place)',
-            'list1.extend(list2)',
-            'print(list1)    # [1, 2, 3, 4, 5, 6]',
-        ]),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain List operations and built-in methods in Python with examples.', [
-        Paragraph('<b>INTRODUCTION:</b> A list in Python is a mutable, ordered sequence that can hold any type of data. It is one of the most powerful data structures used in everyday programming and data analytics.', S['answer']),
-        Paragraph('<b>CREATING LISTS:</b>', S['body_bold']),
-        code_block([
-            'nums = [10, 20, 30, 40, 50]',
-            'mixed = [1, "hello", 3.14, True]',
-            'nested = [[1,2], [3,4], [5,6]]',
-        ]),
-        Paragraph('<b>INDEXING AND SLICING:</b> Indexing starts from 0. Negative index -1 accesses last element. Slicing: list[start:stop:step] extracts a portion.', S['answer']),
-        code_block([
-            'nums[0]     # 10 — first element',
-            'nums[-1]    # 50 — last element',
-            'nums[1:3]   # [20, 30] — index 1 to 2',
-            'nums[::2]   # [10, 30, 50] — every alternate element',
-        ]),
-        Paragraph('<b>KEY LIST METHODS:</b>', S['body_bold']),
-        Paragraph('• <b>append(x)</b> — Adds element x at the end.', S['bullet']),
-        Paragraph('• <b>insert(i, x)</b> — Inserts x at index i.', S['bullet']),
-        Paragraph('• <b>extend(lst)</b> — Merges another list at the end.', S['bullet']),
-        Paragraph('• <b>remove(x)</b> — Removes first occurrence of x.', S['bullet']),
-        Paragraph('• <b>pop(i)</b> — Removes and returns element at index i.', S['bullet']),
-        Paragraph('• <b>sort()</b> — Sorts in ascending order (in-place).', S['bullet']),
-        Paragraph('• <b>reverse()</b> — Reverses the list in-place.', S['bullet']),
-        Paragraph('• <b>count(x)</b> — Counts occurrences of x.', S['bullet']),
-        Paragraph('• <b>index(x)</b> — Returns index of first x.', S['bullet']),
-        Paragraph('• <b>len(lst)</b> — Returns total number of elements.', S['bullet']),
-        code_block([
-            'fruits = ["banana", "apple", "cherry"]',
-            'fruits.sort()           # ["apple", "banana", "cherry"]',
-            'fruits.append("date")   # adds date at end',
-            'fruits.remove("apple")  # removes apple',
-            'print(len(fruits))      # 3',
-        ]),
-        Paragraph('<b>LIST COMPREHENSION:</b> One-line technique to generate lists.', S['body_bold']),
-        Paragraph('Syntax: [expression for item in iterable if condition]', S['answer']),
-        code_block([
-            'squares = [x**2 for x in range(1,6)]       # [1,4,9,16,25]',
-            'evens   = [x for x in range(10) if x%2==0] # [0,2,4,6,8]',
-        ]),
-        Paragraph('<b>NESTED LISTS:</b> Lists can contain other lists (2D lists/matrices). matrix = [[1,2],[3,4],[5,6]] — access with matrix[1][0] gives 3. Lists are the foundation of data processing in Python and data analytics applications.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(10, 'Describe Python Lists in detail covering creation, operations, methods, comprehension and applications with code examples.', [
-        Paragraph('<b>INTRODUCTION:</b> A list in Python is an ordered, mutable, heterogeneous collection of items enclosed in square brackets [ ]. It is the most widely used data structure in Python. Unlike arrays in C or Java, Python lists can hold elements of different data types — integers, strings, floats, booleans, or even other lists. They are dynamic (size can grow/shrink), and form the backbone of all data analytics workflows.', S['answer']),
-        Paragraph('<b>CREATING LISTS — ALL TYPES:</b>', S['body_bold']),
-        code_block([
-            'empty      = []                     # Empty list',
-            'numbers    = [1, 2, 3, 4, 5]        # Integer list',
-            'names      = ["Alice","Bob","Charlie"] # String list',
-            'mixed      = [1, "hi", 3.14, True]  # Mixed types',
-            'nested     = [[1,2,3],[4,5,6]]       # 2D list (matrix)',
-            'from_range = list(range(1,11))       # [1,2,...,10]',
-            'chars      = list("python")          # ["p","y","t","h","o","n"]',
-        ]),
-        Paragraph('<b>INDEXING (POSITIVE AND NEGATIVE):</b> Positive index starts from 0 (left to right). Negative index starts from -1 (right to left). This dual indexing makes Python extremely powerful for accessing elements.', S['answer']),
-        code_block([
-            'lst = ["a","b","c","d","e"]',
-            'lst[0]    # "a" — first element',
-            'lst[-1]   # "e" — last element',
-            'lst[-2]   # "d" — second last',
-            'lst[2]    # "c" — third element',
-        ]),
-        Paragraph('<b>SLICING — Format: list[start : stop : step]</b>', S['body_bold']),
-        Paragraph('• start — inclusive starting index (default 0)', S['bullet']),
-        Paragraph('• stop — exclusive ending index (default end)', S['bullet']),
-        Paragraph('• step — jump/skip interval (default 1)', S['bullet']),
-        code_block([
-            'lst[1:4]    # ["b","c","d"] — index 1,2,3',
-            'lst[::2]    # ["a","c","e"] — every alternate element',
-            'lst[::-1]   # ["e","d","c","b","a"] — reversed',
-            'lst[1:4:2]  # ["b","d"] — index 1,3',
-        ]),
-        Paragraph('<b>MODIFYING LISTS:</b> Lists are mutable — elements can be changed, added, or removed after creation.', S['answer']),
-        code_block([
-            'lst[0] = "z"        # Change first element',
-            'lst[1:3] = [1,2,3]  # Replace a slice with new values',
-            'del lst[2]          # Delete element at index 2',
-        ]),
-        Paragraph('<b>IMPORTANT METHODS (WITH EXAMPLES):</b>', S['body_bold']),
-        code_block([
-            'fruits = ["mango", "banana", "apple"]',
-            '',
-            'fruits.append("grape")      # ["mango","banana","apple","grape"]',
-            'fruits.insert(1, "kiwi")    # inserts kiwi at index 1',
-            'fruits.extend(["pear","fig"]) # merges two lists',
-            'fruits.remove("banana")     # removes first "banana"',
-            'fruits.pop()                # removes & returns last element',
-            'fruits.pop(0)              # removes & returns element at index 0',
-            'fruits.sort()              # sorts alphabetically (in-place)',
-            'fruits.sort(reverse=True)  # reverse alphabetical',
-            'fruits.reverse()           # reverses in place',
-            'idx = fruits.index("apple") # returns position of "apple"',
-            'cnt = fruits.count("mango") # counts occurrences of "mango"',
-            'fruits.clear()             # removes all elements → []',
-            'new = fruits.copy()        # shallow copy',
-        ]),
-        Paragraph('<b>LIST COMPREHENSION:</b> It is a compact, readable, and faster alternative to for-loop-based list creation. The syntax is: [expression for var in iterable if condition].', S['answer']),
-        code_block([
-            'squares   = [x**2 for x in range(1,11)]           # Squares of 1 to 10',
-            'even_sq   = [x**2 for x in range(10) if x%2==0]   # Even squares',
-            'caps      = [w.upper() for w in ["hello","world"]] # ["HELLO","WORLD"]',
-            'flat      = [x for sub in [[1,2],[3,4]] for x in sub] # [1,2,3,4]',
-        ]),
-        Paragraph('<b>2D LISTS (MATRICES):</b> A 2D list is a list of lists. Used to represent tables, grids, and matrices in data analytics.', S['answer']),
-        code_block([
-            'matrix = [[1,2,3],[4,5,6],[7,8,9]]',
-            'print(matrix[0][1])  # 2 — row 0, col 1',
-            'for row in matrix:',
-            '    print(row)       # Prints each row',
-        ]),
-        Paragraph('<b>BUILT-IN FUNCTIONS WITH LISTS:</b> len(lst) — number of elements | sum(lst) — sum of numeric elements | max(lst) — maximum element | min(lst) — minimum element | sorted(lst) — returns new sorted list | reversed(lst) — returns reversed iterator.', S['answer']),
-        Paragraph('<b>APPLICATIONS IN DATA ANALYTICS:</b> Lists are used to store datasets, feature values, labels, and results. They serve as the base for NumPy arrays, Pandas Series, and are heavily used in data preprocessing pipelines, storing column values, holding model predictions, and processing CSV data row by row.', S['answer']),
-        Paragraph('<b>CONCLUSION:</b> Lists are the backbone of Python programming. Their versatility, rich method library, and support for comprehension make them essential for every Python developer and data analyst.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 2: DICTIONARIES
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(2, 'DICTIONARIES IN PYTHON', 8))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is a Dictionary?', S['subtopic']))
-    story.append(Paragraph(
-        'A <b>dictionary</b> in Python is an <b>unordered</b> (Python 3.7+ maintains insertion order), '
-        '<b>mutable</b> collection of <b>key-value pairs</b> enclosed in curly braces <b>{ }</b>. '
-        'Each element is a pair: a <b>key</b> (unique identifier) and a <b>value</b> (data associated with that key). '
-        'Think of it like a real dictionary — you look up a word (key) to find its meaning (value). '
-        'Keys must be <b>immutable</b> (strings, numbers, tuples) but values can be anything.', S['body']))
-    story.append(vspace(4))
-    story.append(colored_box(
-        '🔑 KEY RULE: Keys must be UNIQUE and IMMUTABLE. Values can be ANY type and can be DUPLICATE. '
-        'Dictionaries use {} curly braces. Access values by key, NOT by index number.',
-        LIGHT_ORANGE, ORANGE))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Creating and Accessing Dictionaries', S['subtopic']))
-    story.append(code_block([
-        '# Creating dictionaries',
-        'student = {"name": "Alice", "age": 21, "grade": "A"}  # Basic dict',
-        'empty   = {}                                            # Empty dict',
-        'd2      = dict(name="Bob", age=20)                     # Using dict() constructor',
-        'mixed   = {"id": 1, "scores": [90,85,92], "active": True}  # Nested values',
-        '',
-        '# Accessing values',
-        'print(d["name"])              # "Alice" — direct key access',
-        'print(d.get("age"))           # 21 — safe access (no KeyError)',
-        'print(d.get("phone", "N/A"))  # "N/A" — default if key missing',
-        '',
-        '# Adding, modifying, deleting',
-        'd["city"] = "Mumbai"         # Add new key',
-        'd["age"]  = 22               # Modify existing key',
-        'del d["grade"]               # Delete a key',
-        'd.pop("city")                # Remove & return value of "city"',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Dictionary Methods — Complete Reference', S['subtopic']))
-    story.append(simple_table(
-        ['Method', 'Description', 'Example'],
+        'Measures of dispersion describe how <b>spread out</b> the data is around the central value.',S('body')))
+    story.append(stbl(
+        ['Measure','Formula','Interpretation'],
         [
-            ['keys()', 'Returns all keys as a view object', 'dict_keys(["name","age"])'],
-            ['values()', 'Returns all values as a view object', 'dict_values(["Alice",21])'],
-            ['items()', 'Returns all key-value pairs as tuples', 'dict_items([("name","Alice")])'],
-            ['get(key, default)', 'Returns value; default if key not found (no error)', 'd.get("x","N/A")'],
-            ['update(dict2)', 'Merges dict2 into current dict (overwrites existing keys)', 'd.update({"age":25})'],
-            ['pop(key)', 'Removes key and returns its value', 'd.pop("age") → 21'],
-            ['popitem()', 'Removes and returns last key-value pair (Python 3.7+)', 'd.popitem()'],
-            ['setdefault(k,v)', 'Returns value; sets key=v if key missing', 'd.setdefault("x",0)'],
-            ['clear()', 'Removes all items — dict becomes empty {}', 'd.clear()'],
-            ['copy()', 'Returns a shallow copy of the dictionary', 'd2 = d.copy()'],
-            ['fromkeys(keys,val)', 'Creates dict from list of keys, all with same value', 'dict.fromkeys(["a","b"],0)'],
-            ['in operator', 'Check if key exists in dictionary', '"name" in d → True'],
+            ['Range','Max - Min','Simple but sensitive to outliers'],
+            ['Variance (s2)','Sum((xi - mean)^2) / (n-1) for sample','Average squared deviation from mean'],
+            ['Standard Deviation (s)','sqrt(Variance)','Same units as data. Most used spread measure'],
+            ['Coefficient of Variation','(Std Dev / Mean) x 100%','Relative spread — compare datasets of different units'],
+            ['Interquartile Range (IQR)','Q3 - Q1 (middle 50% spread)','Robust to outliers. Used in boxplots'],
+            ['Mean Absolute Deviation','Sum(|xi - mean|) / n','Average absolute distance from mean'],
+            ['Skewness','Measure of asymmetry of distribution','0=symmetric, positive=right skew, negative=left skew'],
+            ['Kurtosis','Measure of tail heaviness','3=normal, >3=heavy tails, <3=light tails'],
         ],
-        [3.2*cm, 6.8*cm, 5*cm]
+        [3.5*cm, 5*cm, 6.5*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Dictionary Comprehension and Nested Dictionaries', S['subtopic']))
-    story.append(code_block([
-        '# Dictionary comprehension',
-        'squares  = {x: x**2 for x in range(1,6)}        # {1:1, 2:4, 3:9, 4:16, 5:25}',
-        'even_sq  = {x: x**2 for x in range(10) if x%2==0}',
-        'word_len = {w: len(w) for w in ["apple","cat","banana"]}  # {"apple":5,...}',
+    story.append(Paragraph('Five-Number Summary and Quartiles', S('subtopic')))
+    story.append(Paragraph(
+        'The <b>five-number summary</b> provides a complete picture of data distribution: '
+        '<b>Min, Q1, Median (Q2), Q3, Max</b>. '
+        'Q1 = 25th percentile (lower quartile), Q2 = 50th percentile (median), '
+        'Q3 = 75th percentile (upper quartile). '
+        'IQR = Q3 - Q1. '
+        'Outlier boundaries: below Q1 - 1.5*IQR or above Q3 + 1.5*IQR.', S('body')))
+    story.append(vs(4))
+    story.append(cblock([
+        'import numpy as np',
+        'import scipy.stats as stats',
         '',
-        '# Iterating a dictionary',
-        'for key in d:                  # iterate keys',
-        '    print(key)',
-        'for key, val in d.items():     # iterate key-value pairs',
-        '    print(f"{key} → {val}")',
+        'data = [3, 21, 98, 203, 17, 9, 45, 62, 78, 34]',
         '',
-        '# Nested Dictionary',
-        'students = {',
-        '    "Alice": {"age": 21, "grade": "A", "marks": 92},',
-        '    "Bob":   {"age": 22, "grade": "B", "marks": 85}',
-        '}',
-        'print(students["Alice"]["grade"])  # "A"',
-        'print(students["Bob"]["marks"])    # 85',
+        '# ── Measures of Central Tendency ──────────────────────────',
+        'mean   = np.mean(data)           # 57.0',
+        'median = np.median(data)         # 39.5',
+        'mode   = stats.mode(data)        # ModeResult(mode=3, count=1)',
+        '',
+        '# ── Measures of Spread ────────────────────────────────────',
+        'var    = np.var(data, ddof=1)    # Sample variance (ddof=1)',
+        'std    = np.std(data, ddof=1)    # Sample std deviation',
+        'rng    = np.ptp(data)            # Range = max - min',
+        '',
+        '# ── Percentiles and Quartiles ─────────────────────────────',
+        'q1     = np.percentile(data, 25) # Q1',
+        'q2     = np.percentile(data, 50) # Q2 = median',
+        'q3     = np.percentile(data, 75) # Q3',
+        'iqr    = q3 - q1                 # Interquartile Range',
+        '',
+        '# ── Skewness and Kurtosis ─────────────────────────────────',
+        'skew   = stats.skew(data)',
+        'kurt   = stats.kurtosis(data)',
+        '',
+        '# ── Full summary using pandas ─────────────────────────────',
+        'import pandas as pd',
+        'df = pd.DataFrame(data, columns=["values"])',
+        'print(df.describe())',
+        '# count   10.000',
+        '# mean    57.000',
+        '# std     58.xxx',
+        '# min      3.000',
+        '# 25%     17.250',
+        '# 50%     39.500',
+        '# 75%     75.500',
+        '# max    203.000',
+        '',
+        '# ── Variance calculation for exam question ────────────────',
+        '# data: 3, 21, 98, 203, 17, 9',
+        'exam_data = [3, 21, 98, 203, 17, 9]',
+        'mean_e = np.mean(exam_data)      # 58.5',
+        'var_e  = np.var(exam_data)       # Population variance',
+        'var_s  = np.var(exam_data, ddof=1)  # Sample variance',
+        'print(f"Mean: {mean_e}")',
+        'print(f"Population Variance: {var_e:.4f}")',
+        'print(f"Sample Variance: {var_s:.4f}")',
     ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    # Q&A Dictionaries
+    story.append(Paragraph('Shape of Distribution', S('subtopic')))
+    story.append(stbl(
+        ['Shape','Description','Relationship','Example'],
+        [
+            ['Symmetric / Normal','Bell-shaped, equal on both sides','Mean = Median = Mode','Heights, IQ scores'],
+            ['Positively Skewed (Right)','Long tail on the right side','Mean > Median > Mode','Income distribution, house prices'],
+            ['Negatively Skewed (Left)','Long tail on the left side','Mean < Median < Mode','Age at retirement, exam scores (easy test)'],
+            ['Bimodal','Two peaks/humps','Two distinct modes','Mixed populations'],
+            ['Uniform','All values equally likely','No central tendency','Dice rolls'],
+        ],
+        [3*cm, 4*cm, 3.5*cm, 4.5*cm]
+    ))
+    story.append(vs(6))
+
+    # Q&A Topic 1
     story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — DICTIONARIES', S['subtopic']))
+    story.append(Paragraph('EXAM QUESTIONS — DESCRIPTIVE STATISTICS', S('subtopic')))
 
-    elems = qa_block(1.5, 'What is a Python dictionary? How is it different from a list?', [
-        Paragraph('A <b>dictionary</b> is an unordered collection of <b>key-value pairs</b> enclosed in curly braces {}. Unlike lists (which use integer indices 0,1,2...), dictionaries use <b>custom keys</b> for data access.', S['answer']),
-        Paragraph('<b>Example:</b>  d = {"name": "Alice", "age": 21}   →   d["name"] gives "Alice"', S['answer']),
-        Paragraph('Keys must be <b>unique</b> and <b>immutable</b>; values can be of any type. Lists are ordered sequences; dictionaries are key-based mappings.', S['answer']),
-    ])
-    story.extend(elems)
+    story.extend(qa(1.5, 'Find the variance for the data representing tree heights in feet: 3, 21, 98, 203, 17, 9', [
+        Paragraph('<b>Step 1:</b> Find Mean = (3+21+98+203+17+9)/6 = 351/6 = <b>58.5</b>', S('ans')),
+        Paragraph('<b>Step 2:</b> Find squared deviations from mean:', S('ans')),
+        Paragraph('(3-58.5)^2=3080.25, (21-58.5)^2=1406.25, (98-58.5)^2=1560.25, (203-58.5)^2=20880.25, (17-58.5)^2=1722.25, (9-58.5)^2=2450.25', S('ans')),
+        Paragraph('<b>Step 3:</b> Population Variance = Sum / n = (3080.25+1406.25+1560.25+20880.25+1722.25+2450.25)/6 = 31099.5/6 = <b>5183.25</b>', S('ans')),
+        Paragraph('Sample Variance (ddof=1) = 31099.5/5 = <b>6219.9</b>', S('ans')),
+    ]))
 
-    elems = qa_block(5, 'Explain Python dictionaries with all operations and methods with examples.', [
-        Paragraph('<b>DEFINITION:</b> A dictionary is a mutable, insertion-ordered (Python 3.7+) collection of key-value pairs. It allows fast O(1) data retrieval using keys instead of numeric indices.', S['answer']),
-        Paragraph('<b>CREATING A DICTIONARY:</b>', S['body_bold']),
-        code_block([
-            'student = {"name": "Alice", "age": 21, "marks": 85.5}',
-            'empty   = {}',
-            'd2      = dict(city="Delhi", pin=110001)',
-        ]),
-        Paragraph('<b>ACCESSING DATA:</b>', S['body_bold']),
-        code_block([
-            'print(student["name"])           # "Alice" — direct access',
-            'print(student.get("marks"))      # 85.5 — safe access',
-            'print(student.get("phone","N/A"))# "N/A" — default if missing',
-        ]),
-        Paragraph('<b>ADDING, MODIFYING, DELETING:</b>', S['body_bold']),
-        code_block([
-            'student["email"] = "alice@ex.com"  # Add new key',
-            'student["age"]   = 22               # Modify existing key',
-            'del student["marks"]                # Delete key',
-        ]),
-        Paragraph('<b>IMPORTANT METHODS:</b>', S['body_bold']),
-        Paragraph('• <b>keys()</b> → returns all keys: dict_keys(["name","age","email"])', S['bullet']),
-        Paragraph('• <b>values()</b> → returns all values', S['bullet']),
-        Paragraph('• <b>items()</b> → returns (key,value) tuples — use in for loops', S['bullet']),
-        Paragraph('• <b>update({"phone":"9876"})</b> → merges new dict into existing', S['bullet']),
-        Paragraph('• <b>pop("age")</b> → removes and returns value of "age"', S['bullet']),
-        Paragraph('• <b>clear()</b> → empties the dictionary completely', S['bullet']),
-        Paragraph('• <b>copy()</b> → creates a shallow copy', S['bullet']),
-        Paragraph('<b>ITERATING A DICTIONARY:</b>', S['body_bold']),
-        code_block([
-            'for key, value in student.items():',
-            '    print(f"{key} → {value}")',
-        ]),
-        Paragraph('<b>DICTIONARY COMPREHENSION:</b>', S['body_bold']),
-        code_block([
-            'squares = {x: x**2 for x in range(1,6)}   # {1:1, 2:4, 3:9, 4:16, 5:25}',
-        ]),
-        Paragraph('<b>NESTED DICTIONARIES:</b>', S['body_bold']),
-        code_block([
-            'school = {"Alice": {"age":21,"grade":"A"}, "Bob": {"age":22,"grade":"B"}}',
-            'print(school["Alice"]["grade"])  # "A"',
-        ]),
-        Paragraph('Dictionaries are ideal for JSON-like data, configuration settings, frequency counting, lookup tables, and grouping data in analytics pipelines.', S['answer']),
-    ])
-    story.extend(elems)
+    story.extend(qa(1.5, 'Differentiate between inferential and descriptive statistics.', [
+        Paragraph('<b>Descriptive Statistics:</b> Summarizes and describes the features of a dataset. Does NOT make conclusions beyond the given data. Uses measures like mean, median, variance, standard deviation. Example: "Average salary in this sample is Rs.50,000."', S('ans')),
+        Paragraph('<b>Inferential Statistics:</b> Uses sample data to draw conclusions (inferences) about the broader population. Uses hypothesis tests, confidence intervals, regression. Example: "Based on this sample, average salary of ALL employees in India is Rs.50,000."', S('ans')),
+    ]))
 
-    elems = qa_block(10, 'Create a dictionary that stores mobile names as value for "Mobiles" key and price list as value for "Price" key. Create DataFrame from this dictionary.', [
-        Paragraph('<b>EXPLANATION:</b> A DataFrame is a 2D tabular data structure in Pandas. We can create it from a dictionary where each key becomes a column name and the corresponding list becomes the column values. All lists must be of equal length.', S['answer']),
-        code_block([
+    story.extend(qa(5, 'Explain descriptive statistics in detail. Discuss measures of central tendency and measures of dispersion with examples and Python code.', [
+        Paragraph('<b>DESCRIPTIVE STATISTICS</b> is the branch of statistics that summarizes, organizes, and presents data. It describes the basic features WITHOUT drawing conclusions beyond the data.', S('ans')),
+        Paragraph('<b>MEASURES OF CENTRAL TENDENCY:</b>', S('body_bold')),
+        Paragraph('<b>1. Mean</b> — arithmetic average. Mean = Sum(xi)/n. Sensitive to outliers.', S('bullet')),
+        Paragraph('<b>2. Median</b> — middle value when sorted. Robust to outliers. For even n: average of two middle values.', S('bullet')),
+        Paragraph('<b>3. Mode</b> — most frequent value. Used for categorical data.', S('bullet')),
+        cblock([
+            'data = [10, 20, 30, 40, 50, 100]',
+            'print(np.mean(data))    # 41.67 — pulled up by 100',
+            'print(np.median(data))  # 35.0  — unaffected by 100',
+        ]),
+        Paragraph('<b>MEASURES OF DISPERSION:</b>', S('body_bold')),
+        Paragraph('<b>1. Range</b> = Max - Min. Simple but sensitive to outliers.', S('bullet')),
+        Paragraph('<b>2. Variance</b> = Sum((xi-mean)^2)/(n-1). Average squared deviation. Units are squared.', S('bullet')),
+        Paragraph('<b>3. Standard Deviation</b> = sqrt(Variance). Same units as data. MOST USED measure of spread.', S('bullet')),
+        Paragraph('<b>4. IQR</b> = Q3 - Q1. Middle 50% spread. Robust to outliers. Used in boxplot whiskers.', S('bullet')),
+        cblock([
+            'data = [15, 20, 25, 30, 35, 40, 45]',
+            'print(f"Mean:   {np.mean(data):.2f}")    # 30.0',
+            'print(f"Median: {np.median(data):.2f}")  # 30.0',
+            'print(f"Std:    {np.std(data,ddof=1):.2f}") # 10.8',
+            'print(f"Var:    {np.var(data,ddof=1):.2f}") # 116.67',
+            'print(f"IQR:    {np.percentile(data,75)-np.percentile(data,25):.2f}") # 20.0',
+            'print(f"Range:  {np.ptp(data)}")          # 30',
+        ]),
+        Paragraph('<b>SKEWNESS AND KURTOSIS:</b> Skewness measures asymmetry (0=symmetric). Kurtosis measures tail heaviness (3=normal distribution). Both are available via scipy.stats.skew() and scipy.stats.kurtosis().', S('ans')),
+        Paragraph('<b>CONCLUSION:</b> Descriptive statistics is the first step in any data analytics workflow. Always check mean, median, std, and skewness before applying any machine learning model.', S('ans')),
+    ]))
+
+    story.extend(qa(10, 'What are the various data visualization techniques? Explain descriptive statistics comprehensively with all measures, Python implementation, and practical applications.', [
+        Paragraph('<b>DESCRIPTIVE STATISTICS — COMPLETE GUIDE:</b>', S('body_bold')),
+        Paragraph('<b>PART 1 — MEASURES OF CENTRAL TENDENCY:</b>', S('body_bold')),
+        Paragraph('<b>Mean:</b> x-bar = Sum(xi)/n. Best for symmetric data without outliers. Example: mean salary, mean marks.', S('bullet')),
+        Paragraph('<b>Median:</b> Middle value. Best for skewed data or data with outliers. Example: median house price.', S('bullet')),
+        Paragraph('<b>Mode:</b> Most frequent value. Best for categorical data. Example: most popular product.', S('bullet')),
+        Paragraph('<b>Weighted Mean:</b> Sum(wi*xi)/Sum(wi). Used when values have different importance.', S('bullet')),
+        Paragraph('<b>PART 2 — MEASURES OF DISPERSION:</b>', S('body_bold')),
+        Paragraph('<b>Range:</b> Max - Min. Quick but sensitive to outliers.', S('bullet')),
+        Paragraph('<b>Variance (s2):</b> Sum((xi-xbar)^2)/(n-1). Average squared deviation. Use ddof=1 for sample.', S('bullet')),
+        Paragraph('<b>Standard Deviation:</b> sqrt(s2). Same unit as data. Lower = more consistent, higher = more spread.', S('bullet')),
+        Paragraph('<b>IQR = Q3 - Q1:</b> Spread of middle 50%. Robust to outliers. Outlier: x < Q1-1.5*IQR or x > Q3+1.5*IQR.', S('bullet')),
+        Paragraph('<b>CV = (Std/Mean)*100%:</b> Relative spread. Useful for comparing datasets with different units.', S('bullet')),
+        cblock([
+            'import numpy as np',
             'import pandas as pd',
+            'import scipy.stats as stats',
             '',
-            '# Step 1: Create the dictionary',
-            'mobile_data = {',
-            '    "Mobiles": ["Samsung Galaxy S24", "iPhone 15", "OnePlus 12",',
-            '                "Pixel 8", "Xiaomi 14"],',
-            '    "Price":   [79999, 89999, 64999, 74999, 69999]',
-            '}',
+            'marks = [45, 62, 78, 55, 90, 38, 72, 85, 48, 67]',
             '',
-            '# Step 2: Create DataFrame from dictionary',
-            'df = pd.DataFrame(mobile_data)',
+            '# Central Tendency',
+            'print(f"Mean   : {np.mean(marks):.2f}")     # 64.0',
+            'print(f"Median : {np.median(marks):.2f}")   # 64.5',
+            'print(f"Mode   : {stats.mode(marks).mode}")',
             '',
-            '# Step 3: Display the DataFrame',
-            'print(df)',
-            '# Output:',
-            '#              Mobiles  Price',
-            '# 0  Samsung Galaxy S24  79999',
-            '# 1         iPhone 15   89999',
-            '# 2         OnePlus 12  64999',
-            '# 3           Pixel 8   74999',
-            '# 4         Xiaomi 14   69999',
+            '# Dispersion',
+            'print(f"Std Dev: {np.std(marks, ddof=1):.2f}")',
+            'print(f"Variance:{np.var(marks, ddof=1):.2f}")',
+            'print(f"Range  : {np.ptp(marks)}")',
+            'q1, q3 = np.percentile(marks, [25, 75])',
+            'print(f"IQR    : {q3-q1:.2f}")',
             '',
-            '# Accessing columns',
-            'print(df["Mobiles"])       # Series of mobile names',
-            'print(df["Price"])         # Series of prices',
+            '# Shape',
+            'print(f"Skewness : {stats.skew(marks):.4f}")',
+            'print(f"Kurtosis : {stats.kurtosis(marks):.4f}")',
             '',
-            '# Basic operations on DataFrame',
-            'print(df.shape)            # (5, 2) — 5 rows, 2 columns',
-            'print(df.head(3))          # First 3 rows',
-            'print(df.describe())       # Statistical summary of Price',
-            '',
-            '# Finding most expensive mobile',
-            'max_price = df["Price"].max()',
-            'expensive = df[df["Price"] == max_price]',
-            'print(expensive)           # iPhone 15 — 89999',
-            '',
-            '# Sort by price',
-            'df_sorted = df.sort_values("Price", ascending=False)',
-            'print(df_sorted)',
+            '# Full summary with Pandas',
+            'df = pd.Series(marks)',
+            'print(df.describe())',
         ]),
-        Paragraph('<b>KEY POINTS TO REMEMBER:</b>', S['body_bold']),
-        Paragraph('• Dictionary keys become column names in the DataFrame', S['bullet']),
-        Paragraph('• Dictionary values (lists) become column data — all lists must be same length', S['bullet']),
-        Paragraph('• pd.DataFrame(dict) is the simplest way to create a DataFrame', S['bullet']),
-        Paragraph('• DataFrame is the most important data structure in Pandas for data analytics', S['bullet']),
-        Paragraph('• Each row gets an automatic integer index (0, 1, 2, ...)', S['bullet']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>PART 3 — DATA VISUALIZATION TECHNIQUES:</b>', S('body_bold')),
+        stbl(
+            ['Visualization','Purpose','Best For'],
+            [
+                ['Histogram','Shows frequency distribution of continuous data','Understanding data shape and spread'],
+                ['Box Plot','Shows 5-number summary and outliers visually','Comparing groups, detecting outliers'],
+                ['Bar Chart','Compares categorical values','Category comparisons'],
+                ['Scatter Plot','Shows relationship between two numeric variables','Correlation analysis'],
+                ['Line Chart','Shows trends over time','Time series data'],
+                ['Pie Chart','Shows proportion of categories','Part-to-whole relationships'],
+                ['Heat Map','Shows matrix data with color intensity','Correlation matrices'],
+                ['Violin Plot','Combines box plot with density estimation','Distribution shape comparison'],
+            ],
+            [3.5*cm, 5*cm, 6.5*cm]
+        ),
+        vs(4),
+        cblock([
+            'import matplotlib.pyplot as plt',
+            '',
+            '# Histogram',
+            'plt.hist(marks, bins=5, edgecolor="black")',
+            'plt.title("Distribution of Marks")',
+            'plt.xlabel("Marks"); plt.ylabel("Frequency"); plt.show()',
+            '',
+            '# Boxplot',
+            'plt.boxplot(marks)',
+            'plt.title("Boxplot of Marks"); plt.show()',
+            '',
+            '# Scatter plot',
+            'x = [1,2,3,4,5]; y = [2,4,5,4,5]',
+            'plt.scatter(x, y)',
+            'plt.title("Scatter Plot"); plt.show()',
+        ]),
+        Paragraph('<b>CONCLUSION:</b> Descriptive statistics and visualization together form the foundation of Exploratory Data Analysis (EDA). Always perform EDA before building models — it reveals distributions, outliers, relationships, and guides feature engineering decisions.', S('ans')),
+    ]))
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 3: FUNCTIONS
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(3, 'FUNCTIONS IN PYTHON', 10))
-    story.append(vspace(8))
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 2: PROBABILITY DISTRIBUTIONS
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(2,'PROBABILITY DISTRIBUTIONS',12))
+    story.append(vs(8))
 
-    story.append(Paragraph('What is a Function?', S['subtopic']))
+    story.append(Paragraph('What is a Probability Distribution?', S('subtopic')))
     story.append(Paragraph(
-        'A <b>function</b> is a reusable, named block of code that performs a specific task. '
-        'You define it once using the <b>def</b> keyword and call it multiple times. '
-        'Functions promote <b>code reuse</b>, <b>modularity</b>, and <b>readability</b>. '
-        'In Python, functions are <b>first-class objects</b> — meaning they can be assigned to '
-        'variables, passed as arguments, or returned from other functions.', S['body']))
-    story.append(code_block([
-        'def greet(name):              # Defining a function',
-        '    """Returns a greeting."""  # Docstring (optional but recommended)',
-        '    return f"Hello, {name}!"  # Return statement',
-        '',
-        'print(greet("Alice"))  # Calling: Hello, Alice!',
-        'print(greet("Bob"))    # Reuse: Hello, Bob!',
-    ]))
-    story.append(vspace(6))
+        'A <b>probability distribution</b> is a function that describes the <b>likelihood '
+        'of obtaining the possible values</b> that a random variable can take. '
+        'It maps each possible outcome to its probability. '
+        'There are two types: <b>Discrete</b> (finite/countable outcomes) and '
+        '<b>Continuous</b> (infinite outcomes in a range). '
+        'Probability distributions are the mathematical backbone of all statistical inference.', S('body')))
+    story.append(vs(6))
 
-    story.append(Paragraph('Types of Arguments', S['subtopic']))
-    story.append(simple_table(
-        ['Type', 'Description', 'Example'],
+    story.append(Paragraph('Discrete Probability Distributions', S('subtopic')))
+    story.append(stbl(
+        ['Distribution','Parameters','PMF Formula','Mean','Variance','Use Case'],
         [
-            ['Positional', 'Passed in exact order — position matters', 'add(3, 5) → a=3, b=5'],
-            ['Keyword', 'Passed with param name — order doesn\'t matter', 'add(b=5, a=3)'],
-            ['Default', 'Parameter has preset value — optional to pass', 'greet() uses "World" default'],
-            ['*args', 'Variable positional args — stored as TUPLE — any count', 'total(1,2,3,4,5)'],
-            ['**kwargs', 'Variable keyword args — stored as DICT — any count', 'info(name="Alice",age=21)'],
-            ['Mixed', 'Combine all types — order: pos, *args, default, **kwargs', 'f(a, *b, x=1, **kw)'],
+            ['Bernoulli','p = prob of success','P(X=1)=p, P(X=0)=1-p','p','p(1-p)','Single binary outcome (coin flip)'],
+            ['Binomial','n=trials, p=success prob','P(X=k)=C(n,k)*p^k*(1-p)^(n-k)','np','np(1-p)','Number of successes in n trials'],
+            ['Poisson','lambda=avg rate','P(X=k)=e^(-lam)*lam^k/k!','lambda','lambda','Events per unit time/space'],
+            ['Geometric','p=success prob','P(X=k)=(1-p)^(k-1)*p','1/p','(1-p)/p^2','Trials until first success'],
+            ['Hypergeometric','N,K,n','Complex formula','nK/N','Complex','Sampling without replacement'],
         ],
-        [2.5*cm, 6.5*cm, 6*cm]
+        [2.5*cm, 2.5*cm, 4*cm, 1.5*cm, 2*cm, 3.5*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(code_block([
-        '# 1. Positional Arguments',
-        'def add(a, b): return a + b',
-        'add(3, 5)    # a=3, b=5 → 8',
-        '',
-        '# 2. Keyword Arguments',
-        'add(b=5, a=3)  # Same result — order doesn\'t matter',
-        '',
-        '# 3. Default Arguments',
-        'def greet(name="World"):',
-        '    return f"Hello {name}"',
-        'greet()        # "Hello World" — uses default',
-        'greet("Alice") # "Hello Alice" — overrides default',
-        '',
-        '# 4. *args — variable positional (stored as tuple)',
-        'def total(*nums):',
-        '    return sum(nums)',
-        'total(1,2,3,4,5)  # 15',
-        'total(10, 20)     # 30',
-        '',
-        '# 5. **kwargs — variable keyword (stored as dict)',
-        'def info(**data):',
-        '    print(data)',
-        'info(name="Alice", age=21, city="Delhi")',
-        '# {"name":"Alice", "age":21, "city":"Delhi"}',
-        '',
-        '# 6. Combined example',
-        'def display(name, *subjects, **details):',
-        '    print(name, subjects, details)',
-        'display("Alice", "Maths", "Python", grade="A", year=3)',
-        '# Alice ("Maths","Python") {"grade":"A","year":3}',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Lambda (Anonymous) Functions', S['subtopic']))
-    story.append(Paragraph(
-        'A <b>lambda function</b> is a small, anonymous (nameless) function defined in a single line '
-        'using the <b>lambda</b> keyword. It can have any number of arguments but only <b>ONE expression</b>. '
-        'Used mainly with map(), filter(), sorted(). Lambda functions do NOT need a return statement — '
-        'the expression is automatically returned.', S['body']))
-    story.append(Paragraph('<b>Syntax:</b>  lambda  arguments  :  expression', S['body_bold']))
-    story.append(code_block([
-        'square  = lambda x: x**2',
-        'print(square(5))      # 25',
-        '',
-        'add     = lambda x, y: x + y',
-        'print(add(3, 4))      # 7',
-        '',
-        'greet   = lambda name: f"Hello, {name}!"',
-        'print(greet("Alice")) # "Hello, Alice!"',
-        '',
-        '# Used with sorted() — sort by second element',
-        'pairs = [(1,"b"),(3,"a"),(2,"c")]',
-        'pairs.sort(key=lambda p: p[1])    # Sort by second element',
-        '# [(3,"a"),(1,"b"),(2,"c")]',
-        '',
-        '# Descending sort',
-        'nums = [3,1,4,1,5,9,2]',
-        'sorted(nums, key=lambda x: -x)    # [9,5,4,3,2,1,1]',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Higher-Order Functions — map(), filter(), reduce()', S['subtopic']))
-    story.append(Paragraph(
-        'Python supports <b>higher-order functions</b> that take other functions as arguments. '
-        'These three are the most important ones and form the basis of <b>functional programming</b> in Python:', S['body']))
-    story.append(code_block([
-        'from functools import reduce',
-        'nums = [1, 2, 3, 4, 5]',
-        '',
-        '# map(function, iterable) — applies function to EVERY element',
-        'squared = list(map(lambda x: x**2, nums))    # [1,4,9,16,25]',
-        'strs    = list(map(str, nums))                # ["1","2","3","4","5"]',
-        '',
-        '# filter(function, iterable) — keeps elements where function returns True',
-        'evens    = list(filter(lambda x: x%2==0, nums))  # [2,4]',
-        'positive = list(filter(lambda x: x>0, [-1,2,-3,4]))  # [2,4]',
-        '',
-        '# reduce(function, iterable) — accumulates to single value',
-        'total   = reduce(lambda a,b: a+b, nums)      # 15',
-        'product = reduce(lambda a,b: a*b, nums)      # 120',
-        'maximum = reduce(lambda a,b: a if a>b else b, nums) # 5',
-        '',
-        '# COMBINED EXAMPLE (chain all three)',
-        'data   = [1, -2, 3, -4, 5]',
-        'result = reduce(lambda a,b: a+b,              # Step 3: reduce → 35',
-        '          map(lambda x: x**2,                  # Step 2: map   → [1,9,25]',
-        '           filter(lambda x: x>0, data)))       # Step 1: filter→ [1,3,5]',
-        'print(result)  # 35',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Recursion', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Recursion</b> is when a function calls itself. Every recursive function must have a '
-        '<b>base case</b> (stopping condition) to prevent infinite loops. Classic examples: '
-        'factorial, Fibonacci, binary search. Recursion is elegant but can be slow for large inputs '
-        'due to function call overhead.', S['body']))
-    story.append(code_block([
-        '# Factorial using recursion',
-        'def factorial(n):',
-        '    if n == 0 or n == 1:   # Base case — STOP condition',
-        '        return 1',
-        '    return n * factorial(n-1)  # Recursive call',
-        '',
-        'print(factorial(5))  # 5*4*3*2*1 = 120',
-        '',
-        '# Fibonacci using recursion',
-        'def fibonacci(n):',
-        '    if n <= 1: return n    # Base cases: fib(0)=0, fib(1)=1',
-        '    return fibonacci(n-1) + fibonacci(n-2)',
-        '',
-        'print([fibonacci(i) for i in range(8)])  # [0,1,1,2,3,5,8,13]',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Decorators', S['subtopic']))
-    story.append(Paragraph(
-        'A <b>decorator</b> is a function that wraps another function to extend its behavior '
-        'WITHOUT modifying its original code. Decorators use the <b>@decorator_name</b> syntax '
-        'placed above the function definition. Think of it as adding a "wrapper" around a function.', S['body']))
-    story.append(code_block([
-        '# Basic decorator',
-        'def uppercase(func):',
-        '    def wrapper():',
-        '        result = func()         # Call original function',
-        '        return result.upper()   # Add extra behavior',
-        '    return wrapper',
-        '',
-        '@uppercase                      # Apply decorator',
-        'def greet():',
-        '    return "hello"',
-        '',
-        'print(greet())  # "HELLO" — automatically uppercased',
-        '',
-        '# Timer decorator — measures execution time',
-        'def timer(func):',
-        '    def wrapper(*args, **kwargs):',
-        '        import time',
-        '        start  = time.time()',
-        '        result = func(*args, **kwargs)',
-        '        print(f"Time: {time.time()-start:.4f}s")',
-        '        return result',
-        '    return wrapper',
-        '',
-        '@timer',
-        'def compute():',
-        '    return sum(range(1000000))',
-        '',
-        'compute()  # Prints execution time automatically',
-        '',
-        '# Built-in decorators: @staticmethod, @classmethod, @property',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Scope Rules — LEGB', S['subtopic']))
-    story.append(Paragraph(
-        'Python follows <b>LEGB</b> scope resolution order when looking up variables:', S['body']))
-    story.append(simple_table(
-        ['Scope', 'Stands For', 'Description', 'Example'],
+    story.append(Paragraph('Continuous Probability Distributions', S('subtopic')))
+    story.append(stbl(
+        ['Distribution','Parameters','PDF','Mean','Variance','Use Case'],
         [
-            ['L', 'Local', 'Variables inside the current function', 'x defined in def f():'],
-            ['E', 'Enclosing', 'Variables in outer (enclosing) functions — closures', 'x in outer() seen by inner()'],
-            ['G', 'Global', 'Variables at module level (outside all functions)', 'x = 10 at top of file'],
-            ['B', 'Built-in', 'Python\'s built-in names (len, print, range, etc.)', 'len(), print(), sum()'],
+            ['Normal (Gaussian)','mu, sigma','(1/sigma*sqrt(2pi))*e^(-(x-mu)^2/2sigma^2)','mu','sigma^2','Natural phenomena, errors, heights'],
+            ['Standard Normal','mu=0, sigma=1','(1/sqrt(2pi))*e^(-z^2/2)','0','1','Z-scores, tables'],
+            ['t-Distribution','df (degrees freedom)','Complex','0','df/(df-2)','Small sample hypothesis tests'],
+            ['F-Distribution','df1, df2','Complex','df2/(df2-2)','Complex','ANOVA, comparing variances'],
+            ['Chi-Square','df (degrees freedom)','Complex','df','2*df','Goodness of fit, independence tests'],
+            ['Uniform','a=min, b=max','1/(b-a) for x in [a,b]','(a+b)/2','(b-a)^2/12','Equal probability outcomes'],
+            ['Exponential','lambda=rate','lambda*e^(-lambda*x)','1/lambda','1/lambda^2','Time between events'],
+            ['Beta','alpha, beta','Complex','alpha/(alpha+beta)','Complex','Probability modeling [0,1]'],
         ],
-        [1*cm, 2.5*cm, 5*cm, 5.5*cm]
+        [3*cm, 2.5*cm, 4*cm, 2*cm, 2*cm, 3.5*cm]
     ))
-    story.append(vspace(4))
-    story.append(code_block([
-        'x = "global"',
-        '',
-        'def outer():',
-        '    x = "enclosing"',
-        '    def inner():',
-        '        x = "local"',
-        '        print(x)  # "local" — L scope found first',
-        '    inner()',
-        '',
-        'outer()  # prints "local"',
-        '',
-        '# global keyword — modify global variable inside function',
-        'count = 0',
-        'def increment():',
-        '    global count',
-        '    count += 1',
-        '',
-        '# nonlocal keyword — modify enclosing scope variable',
-        'def outer2():',
-        '    val = 0',
-        '    def inner2():',
-        '        nonlocal val',
-        '        val += 1',
-        '    inner2()',
-        '    print(val)   # 1',
-    ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    # Q&A Functions
+    story.append(Paragraph('Normal Distribution — The Most Important', S('subtopic')))
+    story.append(Paragraph(
+        'The <b>Normal (Gaussian) distribution</b> is the most important distribution in statistics. '
+        'It is symmetric, bell-shaped, and defined by mean (mu) and standard deviation (sigma). '
+        'The <b>68-95-99.7 Rule (Empirical Rule)</b>: '
+        '68% of data falls within 1 sigma, 95% within 2 sigma, 99.7% within 3 sigma of the mean.', S('body')))
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
+        'import matplotlib.pyplot as plt',
+        '',
+        '# Normal Distribution',
+        'mu, sigma = 70, 10',
+        'x = np.linspace(40, 100, 100)',
+        'pdf = stats.norm.pdf(x, mu, sigma)   # Probability density',
+        'cdf = stats.norm.cdf(x, mu, sigma)   # Cumulative probability',
+        '',
+        '# P(X < 80) for Normal(70, 10)',
+        'p = stats.norm.cdf(80, mu, sigma)',
+        'print(f"P(X < 80) = {p:.4f}")        # 0.8413',
+        '',
+        '# P(60 < X < 80)',
+        'p2 = stats.norm.cdf(80, 70, 10) - stats.norm.cdf(60, 70, 10)',
+        'print(f"P(60<X<80) = {p2:.4f}")       # 0.6827 (1 sigma = 68%)',
+        '',
+        '# Binomial Distribution',
+        'n, p = 10, 0.5',
+        'k = 6',
+        'prob = stats.binom.pmf(k, n, p)',
+        'print(f"P(X=6) for Binom(10,0.5) = {prob:.4f}")  # 0.2051',
+        '',
+        '# Poisson Distribution',
+        'lam = 3   # average 3 events per hour',
+        'k2 = 5',
+        'prob2 = stats.poisson.pmf(k2, lam)',
+        'print(f"P(X=5) for Poisson(3) = {prob2:.4f}")     # 0.1008',
+        '',
+        '# Generate random samples from distributions',
+        'normal_samples   = np.random.normal(70, 10, 1000)',
+        'binomial_samples = np.random.binomial(10, 0.5, 1000)',
+        'poisson_samples  = np.random.poisson(3, 1000)',
+    ]))
+    story.append(vs(6))
+
+    # Q&A Topic 2
     story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — FUNCTIONS', S['subtopic']))
+    story.append(Paragraph('EXAM QUESTIONS — PROBABILITY DISTRIBUTIONS', S('subtopic')))
 
-    elems = qa_block(1.5, 'What is __init__ in Python?', [
-        Paragraph('<b>__init__</b> is a special <b>magic method</b> (constructor) in Python classes. It is <b>automatically called</b> when a new object is created from a class. It is used to <b>initialize instance attributes</b> — giving each object its own data.', S['answer']),
-        code_block([
-            'class Student:',
-            '    def __init__(self, name, roll):  # Called automatically on object creation',
-            '        self.name = name              # Initialize instance attribute',
-            '        self.roll = roll',
+    story.extend(qa(5, 'Explain probability distribution types in Python with examples.', [
+        Paragraph('<b>PROBABILITY DISTRIBUTION:</b> A probability distribution maps each possible outcome of a random variable to its probability. Two main types: Discrete and Continuous.', S('ans')),
+        Paragraph('<b>DISCRETE DISTRIBUTIONS:</b>', S('body_bold')),
+        Paragraph('<b>1. Bernoulli Distribution:</b> Single binary outcome (success=1, failure=0). P(X=1)=p, P(X=0)=1-p. Example: coin flip.', S('bullet')),
+        Paragraph('<b>2. Binomial Distribution:</b> Number of successes in n independent Bernoulli trials. P(X=k) = C(n,k)*p^k*(1-p)^(n-k). Mean=np, Variance=np(1-p).', S('bullet')),
+        Paragraph('<b>3. Poisson Distribution:</b> Number of events in fixed time/space. P(X=k) = e^(-lam)*lam^k/k!. Mean=Variance=lambda.', S('bullet')),
+        cblock([
+            'from scipy import stats',
             '',
-            's1 = Student("Alice", 101)  # __init__ called here',
-            'print(s1.name)  # "Alice"',
+            '# Binomial: P(X=3) from 10 trials, p=0.4',
+            'print(stats.binom.pmf(3, 10, 0.4))   # 0.2150',
+            '',
+            '# Poisson: P(X=2) given lambda=3',
+            'print(stats.poisson.pmf(2, 3))        # 0.2240',
         ]),
-        Paragraph('The <b>self</b> parameter refers to the current object being created. __init__ does NOT return any value.', S['answer']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>CONTINUOUS DISTRIBUTIONS:</b>', S('body_bold')),
+        Paragraph('<b>1. Normal Distribution:</b> Bell-shaped, symmetric. Described by mean (mu) and std (sigma). 68-95-99.7 rule. Most widely used in statistics.', S('bullet')),
+        Paragraph('<b>2. t-Distribution:</b> Like normal but heavier tails. Used for small samples. Converges to normal as df increases.', S('bullet')),
+        Paragraph('<b>3. Chi-Square Distribution:</b> Used in goodness-of-fit and independence tests. Always positive, right-skewed.', S('bullet')),
+        Paragraph('<b>4. F-Distribution:</b> Ratio of two chi-square distributions. Used in ANOVA and comparing variances.', S('bullet')),
+        cblock([
+            '# Normal: P(X < 75) given Normal(70, 10)',
+            'print(stats.norm.cdf(75, loc=70, scale=10))   # 0.6915',
+            '',
+            '# t-Distribution: PDF at x=1 with df=5',
+            'print(stats.t.pdf(1, df=5))                   # 0.2195',
+            '',
+            '# Chi-Square: CDF at x=5.99 with df=2',
+            'print(stats.chi2.cdf(5.99, df=2))             # 0.9500',
+        ]),
+        Paragraph('<b>EMPIRICAL RULE (Normal Distribution):</b> mu +/- 1*sigma = 68% | mu +/- 2*sigma = 95% | mu +/- 3*sigma = 99.7% of data.', S('ans')),
+    ]))
 
-    elems = qa_block(1.5, 'What are *args and **kwargs in Python functions?', [
-        Paragraph('<b>*args</b> allows a function to accept <b>any number of positional arguments</b>, stored as a <b>tuple</b>. <b>**kwargs</b> allows any number of <b>keyword arguments</b>, stored as a <b>dictionary</b>.', S['answer']),
-        code_block([
-            'def f(*args, **kwargs):',
-            '    print(args)    # Tuple of positional args',
-            '    print(kwargs)  # Dict of keyword args',
-            '',
-            'f(1, 2, 3, name="Alice", age=21)',
-            '# (1, 2, 3)',
-            '# {"name":"Alice", "age":21}',
+    story.extend(qa(10, 'Explain all important probability distributions with formulas, properties, Python implementation and when to use each distribution.', [
+        Paragraph('<b>INTRODUCTION:</b> A probability distribution describes the likelihood of all possible outcomes of a random variable. Choosing the right distribution is fundamental to correct statistical analysis.', S('ans')),
+        Paragraph('<b>PART 1 — DISCRETE DISTRIBUTIONS:</b>', S('body_bold')),
+        Paragraph('<b>1. BERNOULLI DISTRIBUTION:</b>', S('body_bold')),
+        Paragraph('Single trial with two outcomes: success (1) or failure (0). P(X=1)=p, P(X=0)=1-p. Mean=p, Var=p(1-p). Example: Will a patient recover? Will email be spam?', S('ans')),
+        Paragraph('<b>2. BINOMIAL DISTRIBUTION Bin(n,p):</b>', S('body_bold')),
+        Paragraph('Number of successes in n independent Bernoulli trials. PMF: P(X=k)=C(n,k)*p^k*(1-p)^(n-k). Mean=np, Var=np(1-p). Example: Number of heads in 10 coin flips.', S('ans')),
+        cblock(['# P(exactly 6 heads in 10 fair coin flips)', 'print(stats.binom.pmf(6, n=10, p=0.5))   # 0.2051', '# P(at most 6 heads)', 'print(stats.binom.cdf(6, n=10, p=0.5))   # 0.8281']),
+        Paragraph('<b>3. POISSON DISTRIBUTION Pois(lambda):</b>', S('body_bold')),
+        Paragraph('Number of events in a fixed time interval. PMF: P(X=k)=e^(-lam)*lam^k/k!. Mean=Var=lambda. Use when: events occur randomly, independently, at constant average rate.', S('ans')),
+        cblock(['# P(3 customers arrive if avg=2 per minute)', 'print(stats.poisson.pmf(3, mu=2))       # 0.1804']),
+        Paragraph('<b>PART 2 — CONTINUOUS DISTRIBUTIONS:</b>', S('body_bold')),
+        Paragraph('<b>4. NORMAL DISTRIBUTION N(mu, sigma^2):</b>', S('body_bold')),
+        Paragraph('Most important distribution. Bell-shaped, symmetric. PDF: f(x)=(1/sigma*sqrt(2pi))*e^(-(x-mu)^2/2sigma^2). Empirical Rule: 68%-95%-99.7%.', S('ans')),
+        cblock([
+            'mu, sigma = 70, 10',
+            'print(stats.norm.cdf(80, mu, sigma))               # P(X<80) = 0.8413',
+            'print(stats.norm.ppf(0.95, mu, sigma))             # 95th percentile = 86.45',
+            '# Standardize: Z = (X - mu) / sigma',
+            'z = (80 - 70) / 10    # Z = 1.0',
         ]),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain lambda functions and higher-order functions map(), filter(), and reduce() in Python.', [
-        Paragraph('<b>LAMBDA FUNCTIONS:</b> A lambda function is an anonymous, single-expression function defined using the <b>lambda</b> keyword. It is used for short, throwaway functions — especially as arguments to map(), filter(), sorted(). It does not need a return statement.', S['answer']),
-        Paragraph('<b>Syntax:</b>  lambda arguments: expression', S['body_bold']),
-        code_block([
-            'square = lambda x: x**2',
-            'print(square(7))    # 49',
-            '',
-            'add = lambda x, y: x + y',
-            'print(add(3, 4))    # 7',
-            '',
-            'pairs = [(1,"b"),(3,"a"),(2,"c")]',
-            'pairs.sort(key=lambda p: p[0])  # Sort by first element',
-        ]),
-        Paragraph('<b>HIGHER-ORDER FUNCTIONS:</b> A higher-order function takes another function as an argument or returns a function.', S['answer']),
-        Paragraph('<b>1. map(function, iterable):</b> Applies the function to EVERY element of the iterable. Returns a map object (must convert to list).', S['body_bold']),
-        code_block([
-            'nums    = [1, 2, 3, 4, 5]',
-            'doubled = list(map(lambda x: x*2, nums))  # [2,4,6,8,10]',
-            'strs    = list(map(str, nums))             # ["1","2","3","4","5"]',
-        ]),
-        Paragraph('<b>2. filter(function, iterable):</b> Keeps only elements for which the function returns True.', S['body_bold']),
-        code_block([
-            'evens    = list(filter(lambda x: x%2==0, nums))  # [2,4]',
-            'positive = list(filter(lambda x: x>0, [-1,2,-3,4]))  # [2,4]',
-        ]),
-        Paragraph('<b>3. reduce(function, iterable) — from functools:</b> Applies function cumulatively to reduce iterable to a single value.', S['body_bold']),
-        code_block([
-            'from functools import reduce',
-            'product = reduce(lambda a,b: a*b, [1,2,3,4,5])  # 120',
-            'maximum = reduce(lambda a,b: a if a>b else b, nums)  # 5',
-        ]),
-        Paragraph('<b>COMBINED EXAMPLE (chaining all three):</b>', S['body_bold']),
-        code_block([
-            'data   = [1, -2, 3, -4, 5]',
-            '# Step 1: filter keeps positive → [1,3,5]',
-            '# Step 2: map squares them     → [1,9,25]',
-            '# Step 3: reduce sums them     → 35',
-            'result = reduce(lambda a,b: a+b,',
-            '         map(lambda x: x**2,',
-            '          filter(lambda x: x>0, data)))',
-            'print(result)  # 35',
-        ]),
-        Paragraph('Lambda and higher-order functions are core tools in functional programming style and are widely used in data analytics pipelines for data transformation and filtering.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(10, 'Describe Python Functions in detail — types of arguments, decorators, recursion, scope rules.', [
-        Paragraph('<b>INTRODUCTION:</b> A function is a named, reusable block of code that performs a specific task. Functions are defined with the <b>def</b> keyword and called by their name. They make code modular, readable, and maintainable. In Python, functions are first-class objects.', S['answer']),
-        Paragraph('<b>SYNTAX:</b>', S['body_bold']),
-        code_block([
-            'def function_name(parameters):',
-            '    """Docstring — describes what function does"""',
-            '    # function body — code to execute',
-            '    return value   # optional — returns result to caller',
-        ]),
-        Paragraph('<b>TYPES OF ARGUMENTS — ALL 5 TYPES:</b>', S['body_bold']),
-        Paragraph('<b>1. POSITIONAL ARGUMENTS</b> — passed in exact order; position matters', S['bullet']),
-        code_block(['def area(length, breadth): return length * breadth', 'area(5, 3)  # length=5, breadth=3 → 15']),
-        Paragraph('<b>2. KEYWORD ARGUMENTS</b> — passed with parameter name; order doesn\'t matter', S['bullet']),
-        code_block(['area(breadth=3, length=5)  # Same result → 15']),
-        Paragraph('<b>3. DEFAULT ARGUMENTS</b> — have a preset value; optional when calling', S['bullet']),
-        code_block(['def power(base, exp=2): return base ** exp', 'power(3)     # 9  — uses default exp=2', 'power(3, 3)  # 27 — overrides default']),
-        Paragraph('<b>4. *args</b> — variable positional arguments (stored as tuple)', S['bullet']),
-        code_block(['def sum_all(*nums): return sum(nums)', 'sum_all(1,2,3,4,5)  # 15 — any number of args']),
-        Paragraph('<b>5. **kwargs</b> — variable keyword arguments (stored as dict)', S['bullet']),
-        code_block(['def profile(**info): print(info)', 'profile(name="Alice", age=21, city="Delhi")', '# {"name":"Alice","age":21,"city":"Delhi"}']),
-        Paragraph('<b>SCOPE RULES — LEGB:</b> Python searches variables in this order: Local → Enclosing → Global → Built-in.', S['body_bold']),
-        code_block([
-            'x = "global"',
-            'def outer():',
-            '    x = "enclosing"',
-            '    def inner():',
-            '        x = "local"',
-            '        print(x)   # "local" — found in L scope',
-            '    inner()',
-            'outer()',
-            '',
-            '# global keyword — to modify global variable inside function',
-            'count = 0',
-            'def increment():',
-            '    global count',
-            '    count += 1',
-        ]),
-        Paragraph('<b>RECURSION:</b> A function that calls itself. MUST have a base case to stop infinite recursion.', S['body_bold']),
-        code_block([
-            'def fibonacci(n):',
-            '    if n <= 1: return n                    # Base case',
-            '    return fibonacci(n-1) + fibonacci(n-2) # Recursive call',
-            '',
-            'print([fibonacci(i) for i in range(8)])  # [0,1,1,2,3,5,8,13]',
-        ]),
-        Paragraph('<b>LAMBDA FUNCTIONS:</b> Anonymous one-line functions. lambda arguments: expression', S['body_bold']),
-        code_block(['evens = list(filter(lambda x: x%2==0, range(10)))', 'square = lambda x: x**2']),
-        Paragraph('<b>DECORATORS:</b> Decorators modify the behavior of a function without changing its source code. They use the @syntax.', S['body_bold']),
-        code_block([
-            'def uppercase(func):',
-            '    def wrapper():',
-            '        result = func()',
-            '        return result.upper()',
-            '    return wrapper',
-            '',
-            '@uppercase',
-            'def greet(): return "hello"',
-            'print(greet())  # "HELLO"',
-            '',
-            '# Built-in decorators: @staticmethod, @classmethod, @property',
-        ]),
-        Paragraph('<b>GENERATORS AND yield:</b> A generator function uses yield instead of return to produce values one at a time, saving memory. Ideal for large datasets in analytics.', S['body_bold']),
-        code_block([
-            'def count_up(n):',
-            '    for i in range(1, n+1):',
-            '        yield i   # Produces values one at a time',
-            '',
-            'for val in count_up(5):',
-            '    print(val)  # 1 2 3 4 5',
-        ]),
-        Paragraph('<b>CONCLUSION:</b> Functions are the backbone of Python programming. Mastering argument types, scope, recursion, decorators, and lambda functions is essential for writing professional, Pythonic code and data analytics scripts.', S['answer']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>5. t-DISTRIBUTION t(df):</b>', S('body_bold')),
+        Paragraph('Like normal but heavier tails for small samples. Degrees of freedom df = n-1. As df increases, approaches standard normal. Used in t-tests when population std is unknown.', S('ans')),
+        cblock(['# t critical value for 95% CI, df=9', 'print(stats.t.ppf(0.975, df=9))   # 2.2622']),
+        Paragraph('<b>6. CHI-SQUARE DISTRIBUTION chi2(df):</b>', S('body_bold')),
+        Paragraph('Sum of squared standard normal variables. Right-skewed, always positive. Used in: goodness-of-fit test, independence test. df = number of categories - 1.', S('ans')),
+        Paragraph('<b>7. F-DISTRIBUTION F(df1,df2):</b>', S('body_bold')),
+        Paragraph('Ratio of two chi-square distributions divided by their df. Right-skewed. Used in ANOVA to compare group variances.', S('ans')),
+        Paragraph('<b>8. UNIFORM DISTRIBUTION U(a,b):</b> All values in [a,b] equally likely. Mean=(a+b)/2. Used for random number generation.', S('ans')),
+        Paragraph('<b>9. EXPONENTIAL DISTRIBUTION Exp(lambda):</b> Time between Poisson events. Mean=1/lambda. Memoryless property: P(X>s+t|X>s)=P(X>t).', S('ans')),
+        Paragraph('<b>CONCLUSION:</b> Selecting the right distribution depends on: data type (discrete/continuous), range of values, nature of the problem (counts, rates, continuous measurements). Always plot data first to identify the likely distribution.', S('ans')),
+    ]))
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 4: FILE HANDLING
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(4, 'FILE HANDLING IN PYTHON', 7))
-    story.append(vspace(8))
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 3: INFERENTIAL STATISTICS
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(3,'INFERENTIAL STATISTICS — OVERVIEW',10))
+    story.append(vs(8))
 
-    story.append(Paragraph('What is File Handling?', S['subtopic']))
+    story.append(Paragraph('What is Inferential Statistics?', S('subtopic')))
     story.append(Paragraph(
-        'File handling in Python allows you to <b>create, read, write, append, and delete</b> files '
-        'stored on disk. Python provides a built-in <b>open()</b> function to work with files. '
-        'Always close files after use — or use the <b>with</b> statement for automatic closing. '
-        'File handling is critical in data analytics for reading datasets, saving results, and logging.', S['body']))
-    story.append(vspace(4))
-    story.append(colored_box(
-        '⚠️ GOLDEN RULE: Always use "with open()" — it automatically closes the file even if '
-        'an error occurs! This is safer than manually calling f.close().',
-        LIGHT_RED, RED))
-    story.append(vspace(6))
-
-    story.append(Paragraph('File Modes — Complete Reference', S['subtopic']))
-    story.append(simple_table(
-        ['Mode', 'Description', 'File Exists?', 'File Not Found?'],
+        '<b>Inferential statistics</b> uses data from a <b>sample</b> to make '
+        '<b>inferences (conclusions) about the population</b>. '
+        'It goes beyond simply describing the data — it tests hypotheses, '
+        'estimates parameters, and quantifies uncertainty. '
+        'Key tools: hypothesis tests, confidence intervals, regression analysis.', S('body')))
+    story.append(vs(4))
+    story.append(stbl(
+        ['Concept','Description','Example'],
         [
-            ['"r"', 'Read only (DEFAULT) — reads existing file', 'Reads normally', 'FileNotFoundError'],
-            ['"w"', 'Write — creates new or OVERWRITES existing file completely', 'Overwrites!', 'Creates new file'],
-            ['"a"', 'Append — adds to end of file without overwriting', 'Appends at end', 'Creates new file'],
-            ['"x"', 'Exclusive create — error if file already exists', 'FileExistsError', 'Creates new file'],
-            ['"r+"', 'Read AND Write — file must exist', 'Read+Write', 'FileNotFoundError'],
-            ['"rb"', 'Read Binary — for images, PDFs, audio files', 'Reads binary', 'FileNotFoundError'],
-            ['"wb"', 'Write Binary — for images, PDFs, audio files', 'Writes binary', 'Creates new file'],
+            ['Population','The entire group of interest','All students in India'],
+            ['Sample','A subset of the population selected for study','500 randomly selected students'],
+            ['Parameter','Numerical summary of the population (mu, sigma)','True average marks of ALL students'],
+            ['Statistic','Numerical summary of the sample (x-bar, s)','Average marks of 500 sampled students'],
+            ['Sampling Error','Difference between sample statistic and population parameter','x-bar != mu'],
+            ['Confidence Interval','Range of values likely to contain population parameter','"95% CI: [65, 75]"'],
+            ['p-value','Probability of getting results as extreme as observed, assuming H0 is true','p=0.03 means 3% chance'],
+            ['Significance Level (alpha)','Threshold for rejecting H0. Usually 0.05 (5%)','If p < alpha: reject H0'],
         ],
-        [1.5*cm, 6*cm, 3.5*cm, 4*cm]
+        [3.5*cm, 5.5*cm, 6*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Reading and Writing Files', S['subtopic']))
-    story.append(code_block([
-        '# WRITING to a file (creates or overwrites)',
-        'with open("data.txt", "w") as f:',
-        '    f.write("Hello, World!\\n")      # write() — single string',
-        '    f.write("Python File Handling\\n")',
-        '    f.writelines(["Line 1\\n", "Line 2\\n"])  # Write list of strings',
+    story.append(Paragraph('Confidence Intervals', S('subtopic')))
+    story.append(Paragraph(
+        'A <b>confidence interval (CI)</b> gives a range of values that likely contains '
+        'the true population parameter. '
+        'A 95% CI means: if we repeat the experiment 100 times, 95 of the intervals '
+        'will contain the true parameter. '
+        'CI = x-bar +/- (critical_value * SE), where SE = s / sqrt(n).', S('body')))
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
         '',
-        '# READING — entire file at once',
-        'with open("data.txt", "r") as f:',
-        '    content = f.read()         # Reads ALL content as single string',
-        '    print(content)',
+        'data = [52, 58, 63, 47, 71, 65, 55, 68, 49, 60]',
+        'n    = len(data)',
+        'mean = np.mean(data)',
+        'se   = stats.sem(data)   # Standard error = std/sqrt(n)',
         '',
-        '# READING — one line at a time',
-        'with open("data.txt", "r") as f:',
-        '    line = f.readline()        # Reads FIRST line',
-        '    print(line.strip())        # strip() removes \\n',
+        '# 95% Confidence Interval',
+        'ci_95 = stats.t.interval(0.95, df=n-1, loc=mean, scale=se)',
+        'print(f"Mean: {mean:.2f}")',
+        'print(f"95% CI: {ci_95[0]:.2f} to {ci_95[1]:.2f}")',
         '',
-        '# READING — all lines as a list',
-        'with open("data.txt", "r") as f:',
-        '    lines = f.readlines()      # Returns LIST of all lines',
-        '    for line in lines:',
-        '        print(line.strip())',
-        '',
-        '# APPENDING — adds to end without overwriting',
-        'with open("data.txt", "a") as f:',
-        '    f.write("New line added\\n")',
-        '',
-        '# Checking file existence before operations',
-        'import os',
-        'if os.path.exists("data.txt"):',
-        '    print("File exists!")',
-        '    os.remove("data.txt")    # Delete file',
-        '',
-        '# Working with CSV files',
-        'import csv',
-        'with open("students.csv", "w", newline="") as f:',
-        '    writer = csv.writer(f)',
-        '    writer.writerow(["Name","Age","Grade"])  # Header',
-        '    writer.writerow(["Alice", 21, "A"])',
-        '    writer.writerow(["Bob",   22, "B"])',
-        '',
-        'with open("students.csv", "r") as f:',
-        '    reader = csv.reader(f)',
-        '    for row in reader:',
-        '        print(row)',
+        '# 99% Confidence Interval',
+        'ci_99 = stats.t.interval(0.99, df=n-1, loc=mean, scale=se)',
+        'print(f"99% CI: {ci_99[0]:.2f} to {ci_99[1]:.2f}")',
     ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    # Q&A File Handling
+    # Q&A Topic 3
     story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — FILE HANDLING', S['subtopic']))
+    story.append(Paragraph('EXAM QUESTIONS — INFERENTIAL STATISTICS', S('subtopic')))
 
-    elems = qa_block(1.5, 'What is the purpose of the "with" statement in file handling?', [
-        Paragraph('The <b>"with"</b> statement (context manager) ensures the file is <b>automatically closed</b> after the block finishes, even if an exception occurs. It is safer and cleaner than manually calling f.close().', S['answer']),
-        code_block(['with open("file.txt", "r") as f:', '    content = f.read()    # File auto-closes after this block', '# No need to call f.close() explicitly']),
-        Paragraph('"with" runs __enter__ on open and __exit__ on close — handling cleanup automatically even on errors.', S['answer']),
-    ])
-    story.extend(elems)
+    story.extend(qa(1.5, 'Explain overfitting and underfitting of data in data analytics.', [
+        Paragraph('<b>Overfitting:</b> The model learns the training data TOO WELL including its noise and random fluctuations. It has very low training error but very high test error — it does not generalize to new data. Caused by overly complex model (too many parameters).', S('ans')),
+        Paragraph('<b>Underfitting:</b> The model is TOO SIMPLE to capture the underlying patterns. It has high training error AND high test error. Caused by insufficient model complexity or too few features.', S('ans')),
+        Paragraph('<b>Solution:</b> Use cross-validation, regularization (L1/L2), pruning, or choose appropriate model complexity via bias-variance tradeoff.', S('ans')),
+    ]))
 
-    elems = qa_block(5, 'What is a file? Describe the various modes of operation in a file with examples.', [
-        Paragraph('<b>WHAT IS A FILE?</b> A file is a named location on disk used to store data permanently. Unlike variables (which are in RAM and lost when program ends), files persist data. Python allows working with external files using the built-in <b>open()</b> function.', S['answer']),
-        Paragraph('<b>Syntax:</b>  file_object = open("filename", mode)', S['body_bold']),
-        Paragraph('<b>FILE MODES:</b>', S['body_bold']),
-        Paragraph('• <b>"r"</b> — Read only (default); file must exist; raises FileNotFoundError if missing', S['bullet']),
-        Paragraph('• <b>"w"</b> — Write; creates new file or OVERWRITES existing file completely; dangerous!', S['bullet']),
-        Paragraph('• <b>"a"</b> — Append; adds new content to end without deleting old content; creates if not exists', S['bullet']),
-        Paragraph('• <b>"x"</b> — Exclusive create; raises FileExistsError if file already exists; safest for new files', S['bullet']),
-        Paragraph('• <b>"r+"</b> — Read AND Write; file must exist', S['bullet']),
-        Paragraph('• <b>"rb", "wb"</b> — Binary modes for images, PDFs, audio files', S['bullet']),
-        Paragraph('<b>WRITING TO A FILE:</b>', S['body_bold']),
-        code_block(['with open("notes.txt", "w") as f:', '    f.write("Hello Python!\\n")', '    f.write("File Handling is easy.\\n")']),
-        Paragraph('<b>READING FROM A FILE:</b>', S['body_bold']),
-        code_block([
-            'with open("notes.txt", "r") as f:',
-            '    content = f.read()         # Read all at once',
+    story.extend(qa(5, 'Explain inferential statistics and its key concepts including confidence intervals, p-values and significance levels.', [
+        Paragraph('<b>INFERENTIAL STATISTICS</b> uses sample data to draw conclusions about populations. It quantifies uncertainty and enables evidence-based decision making.', S('ans')),
+        Paragraph('<b>KEY CONCEPTS:</b>', S('body_bold')),
+        Paragraph('<b>1. Population vs Sample:</b> Population = all individuals of interest. Sample = subset we study. We use sample statistics to estimate population parameters.', S('bullet')),
+        Paragraph('<b>2. Standard Error (SE):</b> SE = sigma/sqrt(n). Measures how much sample mean varies from true mean. Larger sample = smaller SE = more precise estimate.', S('bullet')),
+        Paragraph('<b>3. Confidence Interval:</b> CI = x-bar +/- z*(sigma/sqrt(n)). A 95% CI means we are 95% confident the true parameter lies in this range.', S('bullet')),
+        Paragraph('<b>4. p-value:</b> Probability of observing results as extreme as ours if H0 is true. Small p-value = strong evidence against H0.', S('bullet')),
+        Paragraph('<b>5. Significance Level (alpha):</b> Pre-set threshold (usually 0.05). If p-value < alpha, reject H0. If p-value >= alpha, fail to reject H0.', S('bullet')),
+        cblock([
+            'data = [52, 58, 63, 47, 71, 65, 55, 68, 49, 60]',
+            'n, mean = len(data), np.mean(data)',
+            'se = stats.sem(data)',
             '',
-            'with open("notes.txt", "r") as f:',
-            '    line = f.readline()        # Read one line',
+            '# 95% CI',
+            'ci = stats.t.interval(0.95, df=n-1, loc=mean, scale=se)',
+            'print(f"95% CI: ({ci[0]:.2f}, {ci[1]:.2f})")',
             '',
-            'with open("notes.txt", "r") as f:',
-            '    lines = f.readlines()      # List of all lines',
+            '# Interpretation: We are 95% confident true mean lies in this interval',
         ]),
-        Paragraph('<b>APPENDING:</b>', S['body_bold']),
-        code_block(['with open("notes.txt", "a") as f:', '    f.write("Appended line\\n")']),
-        Paragraph('<b>CHECKING FILE EXISTENCE AND DELETION:</b>', S['body_bold']),
-        code_block(['import os', 'if os.path.exists("notes.txt"):', '    os.remove("notes.txt")   # Delete file']),
-        Paragraph('File handling is the backbone of data input/output in analytics — reading datasets, saving results, and logging program output.', S['answer']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>TYPE I and TYPE II ERRORS:</b> Type I Error (False Positive) = Rejecting true H0. Probability = alpha. Type II Error (False Negative) = Failing to reject false H0. Probability = beta. Power of test = 1 - beta.', S('ans')),
+    ]))
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 5: CLASS & INSTANCE ATTRIBUTES
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(5, 'CLASS & INSTANCE ATTRIBUTES', 9))
-    story.append(vspace(8))
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 4: HYPOTHESIS TESTING
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(4,'HYPOTHESIS TESTING — COMPLETE GUIDE',15))
+    story.append(cbox('MOST IMPORTANT TOPIC — 15% Exam Probability — GUARANTEED IN PAPER!',
+                      LIGHT_RED, RED, 'note'))
+    story.append(vs(8))
 
-    story.append(Paragraph('Object-Oriented Programming (OOP) Basics', S['subtopic']))
+    story.append(Paragraph('What is Hypothesis Testing?', S('subtopic')))
     story.append(Paragraph(
-        'OOP is a programming paradigm that organizes code around <b>objects</b> (real-world entities). '
-        'A <b>class</b> is a blueprint/template for creating objects. An <b>object</b> (instance) is a '
-        'specific realization of a class. Python supports OOP with class definitions using the <b>class</b> keyword. '
-        'The four pillars of OOP are: <b>Encapsulation, Inheritance, Polymorphism, Abstraction</b>.', S['body']))
-    story.append(vspace(6))
+        '<b>Hypothesis testing</b> is a statistical procedure used to make decisions about '
+        'population parameters based on sample data. '
+        'It tests whether there is enough statistical evidence in a sample to infer '
+        'that a condition holds for the entire population. '
+        'Every hypothesis test involves: formulating hypotheses, choosing a test statistic, '
+        'computing p-value, and making a decision.', S('body')))
+    story.append(vs(6))
 
-    story.append(Paragraph('Class Attributes vs Instance Attributes', S['subtopic']))
-    story.append(simple_table(
-        ['Feature', 'Class Attribute', 'Instance Attribute'],
+    story.append(Paragraph('Steps in Hypothesis Testing', S('subtopic')))
+    story.append(stbl(
+        ['Step','Name','Description'],
         [
-            ['Definition location', 'Inside class body, OUTSIDE any method', 'Inside __init__() using self'],
-            ['Sharing', 'SHARED by ALL instances of the class', 'UNIQUE to each individual object'],
-            ['Access', 'ClassName.attr or self.attr', 'Only via self.attr'],
-            ['When to use', 'Data common to all objects (college name, species)', 'Data unique per object (name, age, marks)'],
-            ['Memory', 'ONE copy in memory for all objects', 'ONE copy per object — more memory'],
-            ['Change effect', 'Changing via class affects ALL instances', 'Changing one object does NOT affect others'],
+            ['1','State the Hypotheses',
+             'H0 (Null Hypothesis): No effect/difference — assume true initially. '
+             'H1/Ha (Alternative Hypothesis): The claim we want to test.'],
+            ['2','Choose Significance Level (alpha)',
+             'Usually alpha=0.05 (5%). This is the probability of Type I error we accept.'],
+            ['3','Choose the Test',
+             'Based on data type, sample size, number of groups. '
+             'Options: z-test, t-test, chi-square, F-test, ANOVA.'],
+            ['4','Compute Test Statistic',
+             'Calculate the test statistic value from sample data '
+             '(z-score, t-score, F-ratio, chi-square value).'],
+            ['5','Find p-value or Critical Value',
+             'p-value = P(getting test statistic as extreme as observed | H0 true). '
+             'Or compare test statistic to critical value.'],
+            ['6','Make Decision',
+             'If p-value < alpha: REJECT H0 (significant result). '
+             'If p-value >= alpha: FAIL TO REJECT H0 (insufficient evidence).'],
+            ['7','State Conclusion',
+             'Interpret the result in context of the original problem.'],
         ],
-        [3*cm, 5.5*cm, 5.5*cm]
+        [1*cm, 3.5*cm, 10.5*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(code_block([
-        'class Student:',
-        '    # CLASS ATTRIBUTE — shared by all instances',
-        '    college = "ABC University"',
-        '    count   = 0               # Tracks total number of students',
-        '',
-        '    def __init__(self, name, roll, marks):',
-        '        # INSTANCE ATTRIBUTES — unique per object',
-        '        self.name  = name',
-        '        self.roll  = roll',
-        '        self.marks = marks',
-        '        Student.count += 1    # Increment class attribute',
-        '',
-        '    def display(self):',
-        '        print(f"Name: {self.name}, Roll: {self.roll}, Marks: {self.marks}")',
-        '        print(f"College: {Student.college}")',
-        '',
-        's1 = Student("Alice", 101, 92)',
-        's2 = Student("Bob",   102, 85)',
-        '',
-        's1.display()           # Alice, 101, 92, ABC University',
-        's2.display()           # Bob,   102, 85, ABC University',
-        'print(Student.count)   # 2 — class attribute shared by all',
-        'print(s1.college)      # "ABC University"',
-        '',
-        '# Changing class attribute affects ALL instances',
-        'Student.college = "XYZ University"',
-        'print(s1.college)  # "XYZ University"',
-        'print(s2.college)  # "XYZ University"',
-        '',
-        '# But adding instance attr does NOT change class attr',
-        's1.college = "PQR University"   # Creates instance attr for s1 only',
-        'print(s1.college)  # "PQR University" — s1 own attr',
-        'print(s2.college)  # "XYZ University" — class attr unchanged',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Types of Methods in a Class', S['subtopic']))
-    story.append(simple_table(
-        ['Method Type', 'Decorator', 'First Parameter', 'Can Access', 'When to Use'],
+    story.append(Paragraph('Types of Hypothesis Tests', S('subtopic')))
+    story.append(stbl(
+        ['Test','Use When','Test Statistic','Assumptions'],
         [
-            ['Instance Method', 'None (default)', 'self', 'Instance attrs + Class attrs', 'Most common — works on object data'],
-            ['Class Method', '@classmethod', 'cls', 'Class attrs only (not instance)', 'Factory methods, modify class data'],
-            ['Static Method', '@staticmethod', 'None (no self/cls)', 'Neither instance nor class attrs', 'Utility functions related to class'],
-        ],
-        [3*cm, 2.5*cm, 2.5*cm, 3.5*cm, 3.5*cm]
-    ))
-    story.append(vspace(4))
-    story.append(code_block([
-        'class MathHelper:',
-        '    pi = 3.14159   # Class attribute',
-        '',
-        '    def __init__(self, value):',
-        '        self.value = value     # Instance attribute',
-        '',
-        '    def show_value(self):           # Instance method',
-        '        print(f"Value: {self.value}")',
-        '',
-        '    @classmethod',
-        '    def circle_area(cls, r):        # Class method — uses cls.pi',
-        '        return cls.pi * r * r',
-        '',
-        '    @staticmethod',
-        '    def add(a, b):                  # Static method — no self/cls',
-        '        return a + b',
-        '',
-        'm = MathHelper(10)',
-        'm.show_value()                      # "Value: 10" — instance method',
-        'print(MathHelper.circle_area(5))    # 78.539 — class method',
-        'print(MathHelper.add(3, 4))         # 7 — static method',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Class Attrs
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — CLASS & INSTANCE ATTRIBUTES', S['subtopic']))
-
-    elems = qa_block(1.5, 'Differentiate between class attribute and instance attribute.', [
-        Paragraph('<b>Class Attribute:</b> Shared by ALL objects of a class. Defined outside methods directly in the class body. Accessed via ClassName.attribute.', S['answer']),
-        Paragraph('<b>Instance Attribute:</b> Unique to each object. Defined inside __init__() using self. Changes to one object do NOT affect others.', S['answer']),
-        code_block(['class Dog:', '    species = "Canine"      # Class attr — shared by ALL dogs', '    def __init__(self, name):', '        self.name = name    # Instance attr — unique per dog', '', 'd1 = Dog("Buddy")', 'd2 = Dog("Max")', 'print(d1.name)     # "Buddy"', 'print(d2.name)     # "Max"', 'print(Dog.species) # "Canine" — same for all']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain class and instance attributes with @classmethod and @staticmethod examples in Python OOP.', [
-        Paragraph('<b>OBJECT-ORIENTED PROGRAMMING:</b> OOP organizes code around objects. A class is a blueprint; an object is a real instance created from that blueprint. Python supports four OOP pillars: Encapsulation, Inheritance, Polymorphism, Abstraction.', S['answer']),
-        Paragraph('<b>CLASS vs INSTANCE ATTRIBUTES:</b>', S['body_bold']),
-        Paragraph('CLASS ATTRIBUTE: Defined at class level (outside methods). Shared by ALL objects — same value for all instances. Accessed as ClassName.attribute or self.attribute.', S['answer']),
-        Paragraph('INSTANCE ATTRIBUTE: Defined inside __init__ using self. Each object has its OWN independent copy. Accessed only through self.', S['answer']),
-        code_block([
-            'class BankAccount:',
-            '    bank_name     = "National Bank"   # Class attribute',
-            '    interest_rate = 0.05               # Class attribute',
-            '',
-            '    def __init__(self, holder, balance):',
-            '        self.holder  = holder           # Instance attribute',
-            '        self.balance = balance          # Instance attribute',
-            '',
-            '    def deposit(self, amount):          # Instance method',
-            '        self.balance += amount',
-            '',
-            '    def show(self):',
-            '        print(f"{self.holder}: Rs.{self.balance} at {BankAccount.bank_name}")',
-            '',
-            'a1 = BankAccount("Alice", 10000)',
-            'a2 = BankAccount("Bob",   25000)',
-            'a1.deposit(5000)',
-            'a1.show()  # Alice: Rs.15000 at National Bank',
-        ]),
-        Paragraph('<b>@CLASSMETHOD</b> — accesses and modifies class attributes using cls:', S['body_bold']),
-        code_block([
-            '    @classmethod',
-            '    def change_rate(cls, new_rate):',
-            '        cls.interest_rate = new_rate',
-            '',
-            'BankAccount.change_rate(0.07)  # Changes for ALL accounts',
-        ]),
-        Paragraph('<b>@STATICMETHOD</b> — no self/cls, independent utility function related to class:', S['body_bold']),
-        code_block([
-            '    @staticmethod',
-            '    def validate_amount(amount):',
-            '        return amount > 0   # Returns True if valid',
-            '',
-            'print(BankAccount.validate_amount(500))   # True',
-            'print(BankAccount.validate_amount(-100))  # False',
-        ]),
-        Paragraph('<b>SUMMARY:</b> Instance method — takes self, accesses instance + class data. Class method — takes cls, accesses/modifies class data. Static method — no self/cls, pure utility helper function.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 6: INHERITANCE
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(6, 'INHERITANCE & MULTIPLE INHERITANCE', 12))
-    story.append(colored_box('⚡ MOST IMPORTANT TOPIC — 12% Exam Probability — Guaranteed in Paper!', LIGHT_RED, RED, 'note'))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is Inheritance?', S['subtopic']))
-    story.append(Paragraph(
-        'Inheritance is one of the <b>four pillars of OOP</b>. It allows a <b>child class</b> (subclass) '
-        'to acquire the properties and methods of a <b>parent class</b> (superclass) without rewriting the code. '
-        'This promotes <b>code reuse</b>, <b>extensibility</b>, and <b>hierarchical relationships</b> between classes. '
-        'The child class can also <b>override</b> parent methods to provide its own specific implementation. '
-        'Inheritance models IS-A relationships: Dog IS-A Animal, Car IS-A Vehicle.', S['body']))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Types of Inheritance — Complete Guide', S['subtopic']))
-    story.append(simple_table(
-        ['Type', 'Description', 'Structure', 'Example'],
-        [
-            ['Single', 'One child, one parent — simplest form', 'Child → Parent', 'Dog → Animal'],
-            ['Multilevel', 'Chain: Child → Parent → Grandparent', 'GrandChild → Child → Parent', 'GrandChild → Child → Parent'],
-            ['Multiple', 'One child inherits from MULTIPLE parents', 'C(A, B) → A and B', 'C(Father, Mother)'],
-            ['Hierarchical', 'Multiple children share ONE parent', 'Dog, Cat → Animal', 'Dog, Cat, Fish → Animal'],
-            ['Hybrid', 'Combination of multiple inheritance types', 'Mix of above', 'Mix of multiple + multilevel'],
+            ['One-sample z-test','Test if sample mean equals hypothesized population mean. n>30 or sigma known',
+             'z = (x-bar - mu0) / (sigma / sqrt(n))','Large sample or known sigma. Normal population.'],
+            ['One-sample t-test','Test if sample mean equals hypothesized value. n<30 or sigma unknown.',
+             't = (x-bar - mu0) / (s / sqrt(n)), df=n-1','Normal population. Small sample.'],
+            ['Two-sample t-test','Compare means of two independent groups.',
+             't = (x1-bar - x2-bar) / sqrt(s1^2/n1 + s2^2/n2)','Normal populations. Independent samples.'],
+            ['Paired t-test','Compare means of same group before and after (dependent samples).',
+             't = d-bar / (sd / sqrt(n)), d = x1-x2','Differences are normally distributed.'],
+            ['Chi-square test','Test independence or goodness of fit for categorical data.',
+             'chi2 = Sum((O-E)^2/E)','Expected freq >= 5 in each cell.'],
+            ['F-test (ANOVA)','Compare means of 3 or more groups.',
+             'F = MSB / MSW (between/within variance)','Normal populations. Equal variances.'],
         ],
         [2.5*cm, 4*cm, 4*cm, 4.5*cm]
     ))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Single Inheritance — Example', S['subtopic']))
-    story.append(code_block([
-        'class Animal:                          # Parent class',
-        '    def __init__(self, name, sound):',
-        '        self.name  = name',
-        '        self.sound = sound',
-        '',
-        '    def speak(self):',
-        '        print(f"{self.name} says {self.sound}")',
-        '',
-        '    def breathe(self):',
-        '        print(f"{self.name} breathes oxygen")',
-        '',
-        '',
-        'class Dog(Animal):                     # Child class inherits from Animal',
-        '    def __init__(self, name, breed):',
-        '        super().__init__(name, "Woof") # Call parent __init__',
-        '        self.breed = breed             # Additional attribute',
-        '',
-        '    def fetch(self):                   # New method in child',
-        '        print(f"{self.name} fetches the ball!")',
-        '',
-        '',
-        'd = Dog("Buddy", "Labrador")',
-        'd.speak()   # Inherited from Animal: Buddy says Woof',
-        'd.breathe() # Inherited: Buddy breathes oxygen',
-        'd.fetch()   # Own method: Buddy fetches the ball!',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Multiple Inheritance — Example', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Multiple Inheritance</b> allows a class to inherit from MORE THAN ONE parent class. '
-        'The child class gets access to methods and attributes of ALL parent classes. '
-        'Python handles method resolution using <b>MRO (C3 Linearization)</b> algorithm.', S['body']))
-    story.append(code_block([
-        'class Father:',
-        '    def work(self):  print("Father works")',
-        '    def cook(self):  print("Father can cook")',
-        '',
-        'class Mother:',
-        '    def cook(self):  print("Mother cooks better")  # Same method name!',
-        '    def nurture(self): print("Mother nurtures")',
-        '',
-        'class Child(Father, Mother):  # Inherits from BOTH (Father listed first)',
-        '    def play(self): print("Child plays")',
-        '',
-        'c = Child()',
-        'c.work()    # From Father: "Father works"',
-        'c.cook()    # From Father (listed FIRST in MRO) — "Father can cook"',
-        'c.nurture() # From Mother: "Mother nurtures"',
-        'c.play()    # Own method: "Child plays"',
-        '',
-        'print(Child.__mro__)  # [Child, Father, Mother, object]',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Multilevel Inheritance', S['subtopic']))
-    story.append(code_block([
-        'class GrandParent:',
-        '    def cook(self): print("GrandParent cooks")',
-        '',
-        'class Parent(GrandParent):',
-        '    def work(self): print("Parent works")',
-        '',
-        'class Child(Parent):         # Child inherits Parent who inherits GrandParent',
-        '    def play(self): print("Child plays")',
-        '',
-        'c = Child()',
-        'c.cook()   # Inherited from GrandParent',
-        'c.work()   # Inherited from Parent',
-        'c.play()   # Own method',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Method Overriding', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Method Overriding</b> occurs when a child class provides its OWN implementation of a method '
-        'already defined in the parent class. The child\'s version takes priority. '
-        'The parent\'s version can still be called using <b>super()</b>. '
-        'This is the basis of <b>polymorphism</b> — same method name, different behaviors.', S['body']))
-    story.append(code_block([
-        'class Shape:',
-        '    def area(self): return 0',
-        '    def describe(self): print(f"I am a shape with area {self.area()}")',
-        '',
-        'class Circle(Shape):',
-        '    def __init__(self, r): self.r = r',
-        '    def area(self): return 3.14 * self.r ** 2   # OVERRIDES Shape.area',
-        '',
-        'class Rectangle(Shape):',
-        '    def __init__(self, l, w): self.l, self.w = l, w',
-        '    def area(self): return self.l * self.w       # OVERRIDES Shape.area',
-        '',
-        '# POLYMORPHISM — same method, different behaviors',
-        'shapes = [Circle(5), Rectangle(4, 6)]',
-        'for s in shapes:',
-        '    print(s.area())     # 78.5 then 24',
-        '    s.describe()        # Inherited from Shape, calls overridden area()',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('super() — Accessing Parent Class', S['subtopic']))
-    story.append(Paragraph(
-        '<b>super()</b> is a built-in function that returns a proxy object representing the parent class. '
-        'It is used to call the parent\'s methods from within the child class, especially in __init__(). '
-        'super() avoids hardcoding the parent class name and works correctly with MRO in multiple inheritance.', S['body']))
-    story.append(code_block([
-        'class Employee:',
-        '    def __init__(self, name, salary):',
-        '        self.name   = name',
-        '        self.salary = salary',
-        '',
-        '    def show(self):',
-        '        print(f"Employee: {self.name}, Salary: {self.salary}")',
-        '',
-        'class Manager(Employee):',
-        '    def __init__(self, name, salary, team_size):',
-        '        super().__init__(name, salary)   # Calls Employee.__init__',
-        '        self.team_size = team_size       # Additional attribute',
-        '',
-        '    def show(self):',
-        '        super().show()                   # Calls Employee.show()',
-        '        print(f"Team Size: {self.team_size}")',
-        '',
-        'm = Manager("Alice", 80000, 10)',
-        'm.show()',
-        '# Employee: Alice, Salary: 80000',
-        '# Team Size: 10',
-        '',
-        '# Useful functions for inheritance',
-        'print(isinstance(m, Manager))    # True',
-        'print(isinstance(m, Employee))   # True — due to inheritance!',
-        'print(issubclass(Manager, Employee))  # True',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Inheritance
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — INHERITANCE', S['subtopic']))
-
-    elems = qa_block(1.5, 'What is inheritance in Python? Name its types.', [
-        Paragraph('Inheritance is an OOP feature where a <b>child class</b> acquires properties and methods of a <b>parent class</b>, enabling <b>code reuse</b>. Types: <b>Single</b> (one parent), <b>Multiple</b> (many parents), <b>Multilevel</b> (chain), <b>Hierarchical</b> (one parent many children), <b>Hybrid</b> (combination).', S['answer']),
-        code_block(['class Child(Parent): pass  # Single inheritance', 'class C(A, B): pass        # Multiple inheritance']),
-        Paragraph('Child inherits all non-private members of Parent. Use super() to call parent methods.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(1.5, 'What are Inheritance types in Python?', [
-        Paragraph('<b>Five types of inheritance in Python:</b>', S['answer']),
-        Paragraph('1. <b>Single</b> — One child, one parent: class Dog(Animal)', S['bullet']),
-        Paragraph('2. <b>Multiple</b> — One child, multiple parents: class C(A, B)', S['bullet']),
-        Paragraph('3. <b>Multilevel</b> — Chain of inheritance: GrandChild → Child → Parent', S['bullet']),
-        Paragraph('4. <b>Hierarchical</b> — Multiple children, one parent: Dog, Cat both inherit Animal', S['bullet']),
-        Paragraph('5. <b>Hybrid</b> — Combination of multiple types; handled by Python\'s MRO (C3 Algorithm)', S['bullet']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(10, 'Explain all types of inheritance in Python with examples and super() usage.', [
-        Paragraph('<b>INTRODUCTION:</b> Inheritance allows a child class (subclass) to inherit attributes and methods from a parent class (superclass). This promotes code reuse, modularity, and establishes IS-A relationships (Dog IS-A Animal). Python supports 5 types of inheritance.', S['answer']),
-        Paragraph('<b>1. SINGLE INHERITANCE — one child, one parent:</b>', S['body_bold']),
-        code_block(['class Animal:', '    def breathe(self): print("Breathing...")', 'class Dog(Animal):', '    def bark(self): print("Woof!")', '', 'd = Dog()', 'd.breathe()  # Inherited from Animal', 'd.bark()     # Own method']),
-        Paragraph('<b>2. MULTILEVEL INHERITANCE — chain of classes:</b>', S['body_bold']),
-        code_block(['class GrandParent:', '    def cook(self): print("GrandParent cooks")', 'class Parent(GrandParent):', '    def work(self): print("Parent works")', 'class Child(Parent):', '    def play(self): print("Child plays")', '', 'c = Child()', 'c.cook()   # From GrandParent', 'c.work()   # From Parent', 'c.play()   # Own method']),
-        Paragraph('<b>3. MULTIPLE INHERITANCE — one child, multiple parents:</b>', S['body_bold']),
-        code_block(['class A:', '    def show(self): print("From A")', 'class B:', '    def display(self): print("From B")', 'class C(A, B):     # Inherits from both', '    def info(self): print("From C")', '', 'obj = C()', 'obj.show()     # From A', 'obj.display()  # From B', 'obj.info()     # From C']),
-        Paragraph('<b>4. HIERARCHICAL INHERITANCE — multiple children, one parent:</b>', S['body_bold']),
-        code_block(['class Animal:', '    def breathe(self): print("Breathes")', 'class Cat(Animal):', '    def meow(self): print("Meow!")', 'class Dog(Animal):', '    def bark(self): print("Woof!")', '', '# Both Cat and Dog inherit breathe() from Animal']),
-        Paragraph('<b>5. HYBRID INHERITANCE — combination:</b> Mix of Multiple + Multilevel (or other types). Python handles via MRO.', S['body_bold']),
-        Paragraph('<b>METHOD OVERRIDING:</b> When child defines same method as parent, child\'s version is called.', S['body_bold']),
-        code_block(['class Bird:', '    def sound(self): return "Generic sound"', 'class Parrot(Bird):', '    def sound(self): return "Hello!"     # Overrides', 'class Crow(Bird):', '    def sound(self): return "Caw Caw!"  # Overrides', '', 'birds = [Parrot(), Crow()]', 'for b in birds: print(b.sound())  # Polymorphism!']),
-        Paragraph('<b>super() FUNCTION:</b> Calls parent methods without naming parent explicitly.', S['body_bold']),
-        code_block(['class Employee:', '    def __init__(self, name, salary):', '        self.name = name; self.salary = salary', '    def show(self): print(f"Employee: {self.name}, Rs.{self.salary}")', '', 'class Manager(Employee):', '    def __init__(self, name, salary, team_size):', '        super().__init__(name, salary)   # Calls Employee.__init__', '        self.team_size = team_size', '    def show(self):', '        super().show()                    # Calls Employee.show()', '        print(f"Team: {self.team_size}")', '', 'm = Manager("Alice", 80000, 10)', 'm.show()', '# Employee: Alice, Rs.80000', '# Team: 10']),
-        Paragraph('<b>isinstance() and issubclass():</b>', S['body_bold']),
-        code_block(['print(isinstance(m, Manager))      # True', 'print(isinstance(m, Employee))     # True — due to inheritance!', 'print(issubclass(Manager, Employee)) # True']),
-        Paragraph('<b>CONCLUSION:</b> Inheritance is fundamental to OOP design. It models real-world hierarchies, reduces code duplication, and supports polymorphism. Python\'s support for multiple and multilevel inheritance with MRO makes it one of the most powerful OOP languages.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 7: MRO
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(7, 'METHOD RESOLUTION ORDER (MRO)', 8))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is MRO?', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Method Resolution Order (MRO)</b> defines the <b>ORDER</b> in which Python searches for '
-        'a method or attribute when there is inheritance involved — especially in multiple inheritance. '
-        'Python uses the <b>C3 Linearization Algorithm</b> (also called C3 superclass linearization) '
-        'to determine MRO. It ensures a consistent, predictable order. '
-        'You can check MRO using <b>ClassName.mro()</b> or <b>ClassName.__mro__</b>.', S['body']))
-    story.append(vspace(4))
-    story.append(colored_box(
-        '🔑 MRO Rules: (1) Child class always comes BEFORE its parents. '
-        '(2) Parents listed LEFT to RIGHT take priority. '
-        '(3) A class appears in MRO only AFTER all classes that depend on it.',
-        LIGHT_PURPLE, PURPLE))
-    story.append(vspace(6))
-
-    story.append(Paragraph('The Diamond Problem — Why MRO Matters', S['subtopic']))
-    story.append(Paragraph(
-        'The <b>Diamond Problem</b> occurs in multiple inheritance when a class inherits from two classes '
-        'that both inherit from a common base class. Without MRO, it\'s unclear which parent\'s method '
-        'to call. Python solves this elegantly with <b>C3 Linearization</b>.', S['body']))
-    story.append(code_block([
-        'class A:',
-        '    def show(self): print("A")',
-        '',
-        'class B(A):',
-        '    def show(self): print("B")',
-        '',
-        'class C(A):',
-        '    def show(self): print("C")',
-        '',
-        'class D(B, C):  # Diamond: D→B→A and D→C→A',
-        '    pass',
-        '',
-        'd = D()',
-        'd.show()         # Output: "B" (follows MRO — B comes before C)',
-        '',
-        'print(D.mro())   # [D, B, C, A, object]',
-        'print(D.__mro__) # Same as tuple: (<D>, <B>, <C>, <A>, <object>)',
-        '',
-        '# MRO ORDER: D → B → C → A → object',
-        '# Python searches: D (not found) → B (found!) → calls B.show()',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('C3 Linearization Formula', S['subtopic']))
-    story.append(Paragraph(
-        'The C3 algorithm computes MRO as: <b>Class itself + merge of parents\' MROs + list of parents</b>. '
-        'The "merge" step picks the first element that does NOT appear in the TAIL of any other list:', S['body']))
-    story.append(code_block([
-        '# For class D(B, C):',
-        '# L[D] = D + merge(L[B], L[C], [B, C])',
-        '# L[B] = [B, A, object]',
-        '# L[C] = [C, A, object]',
-        '',
-        '# Step 1: First of L[B] is B — not in tail of any list → pick B',
-        '# Step 2: First of L[B] now is A — A IS in tail of [C,A,object] → skip',
-        '#         First of L[C] is C — not in tail of any remaining → pick C',
-        '# Step 3: First of L[B] is A — now not in any tail → pick A',
-        '# Step 4: object',
-        '',
-        '# Result: D → B → C → A → object   ✓',
-        '',
-        '# More complex example',
-        'class X: pass',
-        'class Y(X): pass',
-        'class Z(X): pass',
-        'class W(Y, Z): pass',
-        '',
-        'print(W.mro())',
-        '# [W, Y, Z, X, object]',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A MRO
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — MRO', S['subtopic']))
-
-    elems = qa_block(1.5, 'What is MRO in Python? Which algorithm is used?', [
-        Paragraph('<b>MRO (Method Resolution Order)</b> defines the order in which Python searches classes when a method is called in an inheritance hierarchy. Python uses the <b>C3 Linearization Algorithm</b> to compute MRO.', S['answer']),
-        Paragraph('Check MRO using <b>ClassName.mro()</b> or <b>ClassName.__mro__</b>. MRO ensures child class always comes before parent class and parents are searched left-to-right.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain MRO and the Diamond Problem in Python with C3 Linearization.', [
-        Paragraph('<b>METHOD RESOLUTION ORDER (MRO):</b> When Python encounters a method call, it needs to know WHICH class\'s method to use — especially in complex inheritance trees. MRO defines the precise search order using the <b>C3 Linearization Algorithm</b> (introduced Python 2.3).', S['answer']),
-        Paragraph('<b>Guarantees:</b> Consistent left-to-right ordering of parents | Child always comes before parent | Monotonicity — order is preserved throughout.', S['answer']),
-        Paragraph('<b>THE DIAMOND PROBLEM:</b>', S['body_bold']),
-        code_block([
-            'class A:',
-            '    def method(self): print("Method from A")',
-            'class B(A):',
-            '    def method(self): print("Method from B")',
-            'class C(A):',
-            '    def method(self): print("Method from C")',
-            'class D(B, C): pass   # Diamond — both B and C inherit from A',
-            '',
-            'd = D()',
-            'd.method()            # "Method from B" — B comes first in MRO',
-            'print(D.mro())',
-            '# [D, B, C, A, object]',
-        ]),
-        Paragraph('<b>MRO for D is: D → B → C → A → object</b>. Python first looks in D (not found), then B (found!) → calls B\'s method.', S['answer']),
-        Paragraph('<b>C3 LINEARIZATION:</b> L[D(B,C)] = D + merge(L[B], L[C], [B,C]) → Result: D, B, C, A, object', S['answer']),
-        Paragraph('<b>CHECKING MRO:</b>', S['body_bold']),
-        code_block(['print(D.__mro__)  # Tuple of class hierarchy', 'print(D.mro())    # List version']),
-        Paragraph('<b>USING super() WITH MRO:</b> super() follows the correct MRO chain even in complex hierarchies, making Python\'s multiple inheritance safe and predictable.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 8: MAGIC METHODS
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(8, 'MAGIC METHODS & OPERATOR OVERLOADING', 10))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What are Magic Methods (Dunder Methods)?', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Magic methods</b> (also called <b>dunder methods</b> — Double UNDERscore) are special methods '
-        'in Python with names surrounded by double underscores like <b>__init__</b>, <b>__str__</b>, '
-        '<b>__len__</b>, <b>__add__</b>, etc. They are NOT called directly — Python calls them '
-        '<b>AUTOMATICALLY</b> in response to specific operations. For example, when you write <b>a + b</b>, '
-        'Python internally calls <b>a.__add__(b)</b>. Magic methods allow you to define how your custom '
-        'objects behave with built-in Python syntax.', S['body']))
-    story.append(colored_box(
-        '⚡ RULE: Dunder methods are NEVER called directly by the programmer. '
-        'They are triggered AUTOMATICALLY by Python\'s syntax and built-in functions.',
-        LIGHT_PURPLE, PURPLE))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Complete Table of Important Magic Methods', S['subtopic']))
-    story.append(simple_table(
-        ['Magic Method', 'Triggered By', 'Purpose'],
-        [
-            ['__init__(self,...)', 'obj = MyClass()', 'Constructor — initialize object attributes'],
-            ['__str__(self)', 'str(obj) or print(obj)', 'Human-readable string representation'],
-            ['__repr__(self)', 'repr(obj) or in shell', 'Developer/debug string — how to recreate object'],
-            ['__len__(self)', 'len(obj)', 'Return length/size of object'],
-            ['__add__(self,other)', 'obj1 + obj2', 'Addition operator +'],
-            ['__sub__(self,other)', 'obj1 - obj2', 'Subtraction operator -'],
-            ['__mul__(self,other)', 'obj1 * obj2', 'Multiplication operator *'],
-            ['__truediv__(self,other)', 'obj1 / obj2', 'Division operator /'],
-            ['__eq__(self,other)', 'obj1 == obj2', 'Equality comparison =='],
-            ['__lt__(self,other)', 'obj1 < obj2', 'Less than comparison <'],
-            ['__gt__(self,other)', 'obj1 > obj2', 'Greater than comparison >'],
-            ['__le__(self,other)', 'obj1 <= obj2', 'Less than or equal <='],
-            ['__ge__(self,other)', 'obj1 >= obj2', 'Greater than or equal >='],
-            ['__ne__(self,other)', 'obj1 != obj2', 'Not equal comparison !='],
-            ['__contains__(self,item)', 'item in obj', 'Membership test (in operator)'],
-            ['__getitem__(self,key)', 'obj[key]', 'Subscript/indexing access'],
-            ['__setitem__(self,key,val)', 'obj[key] = val', 'Subscript assignment'],
-            ['__delitem__(self,key)', 'del obj[key]', 'Subscript deletion'],
-            ['__iter__(self)', 'for x in obj:', 'Iterator protocol — make iterable'],
-            ['__next__(self)', 'next(obj)', 'Return next item in iterator'],
-            ['__call__(self,...)', 'obj(...)', 'Make object callable like a function'],
-            ['__del__(self)', 'del obj', 'Destructor — cleanup when object destroyed'],
-            ['__bool__(self)', 'bool(obj) or if obj:', 'Boolean truth value of object'],
-            ['__hash__(self)', 'hash(obj)', 'Hash value for use as dict key'],
-        ],
-        [4*cm, 3.5*cm, 7.5*cm]
-    ))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Operator Overloading — Complete Example', S['subtopic']))
-    story.append(Paragraph(
-        '<b>Operator Overloading</b> means redefining how standard Python operators (+, -, *, ==, <, >, etc.) '
-        'work for your custom classes. This makes your objects behave like built-in types.', S['body']))
-    story.append(code_block([
-        'class Vector:',
-        '    def __init__(self, x, y):',
-        '        self.x = x',
-        '        self.y = y',
-        '',
-        '    def __str__(self):            # Called by print(v) or str(v)',
-        '        return f"Vector({self.x}, {self.y})"',
-        '',
-        '    def __repr__(self):           # Called by repr(v) — for debugging',
-        '        return f"Vector(x={self.x}, y={self.y})"',
-        '',
-        '    def __add__(self, other):     # v1 + v2',
-        '        return Vector(self.x + other.x, self.y + other.y)',
-        '',
-        '    def __sub__(self, other):     # v1 - v2',
-        '        return Vector(self.x - other.x, self.y - other.y)',
-        '',
-        '    def __mul__(self, scalar):    # v1 * 3 (scalar multiplication)',
-        '        return Vector(self.x * scalar, self.y * scalar)',
-        '',
-        '    def __eq__(self, other):      # v1 == v2',
-        '        return self.x == other.x and self.y == other.y',
-        '',
-        '    def __lt__(self, other):      # v1 < v2 (compare magnitudes)',
-        '        return (self.x**2 + self.y**2) < (other.x**2 + other.y**2)',
-        '',
-        '    def __len__(self):            # len(v) — returns magnitude as int',
-        '        return int((self.x**2 + self.y**2) ** 0.5)',
-        '',
-        '    def __bool__(self):           # bool(v) — True if non-zero vector',
-        '        return self.x != 0 or self.y != 0',
-        '',
-        '',
-        'v1 = Vector(3, 4)',
-        'v2 = Vector(1, 2)',
-        '',
-        'print(v1 + v2)    # Vector(4, 6)',
-        'print(v1 - v2)    # Vector(2, 2)',
-        'print(v1 * 2)     # Vector(6, 8)',
-        'print(v1 == v2)   # False',
-        'print(v1 < v2)    # False (25 > 5)',
-        'print(len(v1))    # 5 (magnitude of 3,4,5 right triangle)',
-        'print(str(v1))    # Vector(3, 4)',
-        'print(bool(v1))   # True (non-zero)',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Magic Methods
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — MAGIC METHODS', S['subtopic']))
-
-    elems = qa_block(1.5, 'What are dunder/magic methods in Python? Give two examples.', [
-        Paragraph('<b>Magic methods</b> (dunder methods) are special Python methods with <b>double underscores</b> on both sides. Python calls them <b>automatically</b> in response to specific operations or syntax.', S['answer']),
-        Paragraph('• <b>__init__</b> is called automatically when creating an object: obj = MyClass()', S['bullet']),
-        Paragraph('• <b>__str__</b> is called by print(obj) or str(obj) to return a string representation', S['bullet']),
-        Paragraph('• <b>__add__</b> is called when using + operator: obj1 + obj2', S['bullet']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(1.5, 'List 3 magic methods in Python.', [
-        Paragraph('Three important magic (dunder) methods in Python:', S['answer']),
-        Paragraph('1. <b>__init__(self, ...)</b> — Constructor; automatically called when object is created; used to initialize instance attributes.', S['bullet']),
-        Paragraph('2. <b>__str__(self)</b> — Called by print() and str(); returns human-readable string representation of object.', S['bullet']),
-        Paragraph('3. <b>__len__(self)</b> — Called by len(); returns integer representing size/length of object.', S['bullet']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(15, 'Explain Magic Methods and Operator Overloading in Python in detail with complete examples.', [
-        Paragraph('<b>INTRODUCTION:</b> Magic methods (dunder methods) are predefined methods in Python that allow custom class objects to respond to Python\'s built-in operations and syntax. They make user-defined classes behave like built-in types (int, list, string, etc.). Every operator in Python has a corresponding magic method. When you write a + b, Python internally calls a.__add__(b). This mechanism is called OPERATOR OVERLOADING.', S['answer']),
-        Paragraph('<b>OBJECT LIFECYCLE MAGIC METHODS:</b>', S['body_bold']),
-        code_block([
-            'class MyClass:',
-            '    def __init__(self, val):',
-            '        self.val = val',
-            '        print(f"Object created with val={val}")   # __init__',
-            '',
-            '    def __del__(self):',
-            '        print(f"Object with val={self.val} destroyed")  # __del__',
-            '',
-            'obj = MyClass(10)   # Triggers __init__',
-            'del obj             # Triggers __del__',
-        ]),
-        Paragraph('<b>STRING REPRESENTATION METHODS:</b>', S['body_bold']),
-        Paragraph('• <b>__str__:</b> Called by str(obj) or print(obj) — user-friendly output', S['bullet']),
-        Paragraph('• <b>__repr__:</b> Called by repr(obj) — developer/debug output; should show how to recreate the object', S['bullet']),
-        code_block([
-            'class Book:',
-            '    def __init__(self, title, author, price):',
-            '        self.title  = title',
-            '        self.author = author',
-            '        self.price  = price',
-            '',
-            '    def __str__(self):',
-            '        return f\'"{self.title}" by {self.author} - Rs.{self.price}\'',
-            '',
-            '    def __repr__(self):',
-            '        return f\'Book("{self.title}", "{self.author}", {self.price})\'',
-            '',
-            'b = Book("Python Pro", "Alice", 499)',
-            'print(b)        # "Python Pro" by Alice - Rs.499',
-            'print(repr(b))  # Book("Python Pro", "Alice", 499)',
-        ]),
-        Paragraph('<b>ARITHMETIC OPERATOR OVERLOADING:</b>', S['body_bold']),
-        code_block([
-            'class Fraction:',
-            '    def __init__(self, num, den):',
-            '        self.num = num; self.den = den',
-            '',
-            '    def __str__(self): return f"{self.num}/{self.den}"',
-            '',
-            '    def __add__(self, other):     # Overloads +',
-            '        n = self.num*other.den + other.num*self.den',
-            '        d = self.den * other.den',
-            '        return Fraction(n, d)',
-            '',
-            '    def __sub__(self, other):     # Overloads -',
-            '        n = self.num*other.den - other.num*self.den',
-            '        d = self.den * other.den',
-            '        return Fraction(n, d)',
-            '',
-            '    def __mul__(self, other):     # Overloads *',
-            '        return Fraction(self.num*other.num, self.den*other.den)',
-            '',
-            'f1 = Fraction(1,2); f2 = Fraction(1,3)',
-            'print(f1 + f2)  # 5/6',
-            'print(f1 - f2)  # 1/6',
-            'print(f1 * f2)  # 1/6',
-        ]),
-        Paragraph('<b>COMPARISON OPERATOR OVERLOADING:</b>', S['body_bold']),
-        code_block([
-            'class Student:',
-            '    def __init__(self, name, marks):',
-            '        self.name  = name',
-            '        self.marks = marks',
-            '',
-            '    def __eq__(self, other): return self.marks == other.marks  # ==',
-            '    def __lt__(self, other): return self.marks <  other.marks  # <',
-            '    def __gt__(self, other): return self.marks >  other.marks  # >',
-            '    def __le__(self, other): return self.marks <= other.marks  # <=',
-            '    def __ge__(self, other): return self.marks >= other.marks  # >=',
-            '    def __str__(self): return f"{self.name}:{self.marks}"',
-            '',
-            's1 = Student("Alice", 90); s2 = Student("Bob", 85)',
-            'print(s1 > s2)   # True',
-            'print(s1 == s2)  # False',
-            'students = [s2, s1]; students.sort()  # Uses __lt__',
-            'print([str(s) for s in students])  # ["Bob:85","Alice:90"]',
-        ]),
-        Paragraph('<b>CONTAINER/SEQUENCE MAGIC METHODS:</b>', S['body_bold']),
-        code_block([
-            'class NumberCollection:',
-            '    def __init__(self, *nums): self.nums = list(nums)',
-            '    def __len__(self):         return len(self.nums)',
-            '    def __getitem__(self, idx):return self.nums[idx]',
-            '    def __setitem__(self, idx, val): self.nums[idx] = val',
-            '    def __contains__(self, item):    return item in self.nums',
-            '    def __iter__(self):         return iter(self.nums)',
-            '    def __str__(self):          return str(self.nums)',
-            '',
-            'nc = NumberCollection(1, 2, 3, 4, 5)',
-            'print(len(nc))        # 5',
-            'print(nc[2])          # 3',
-            'print(3 in nc)        # True',
-            'for n in nc: print(n, end=" ")  # 1 2 3 4 5',
-        ]),
-        Paragraph('<b>CALLABLE OBJECTS — __call__:</b> Makes an object callable like a function!', S['body_bold']),
-        code_block([
-            'class Multiplier:',
-            '    def __init__(self, factor): self.factor = factor',
-            '    def __call__(self, value): return value * self.factor',
-            '',
-            'triple = Multiplier(3)',
-            'print(triple(5))   # 15 — object called like a function!',
-            'print(triple(10))  # 30',
-        ]),
-        Paragraph('<b>CONTEXT MANAGER — __enter__ and __exit__:</b> Used with "with" statement for automatic resource management.', S['body_bold']),
-        code_block([
-            'class FileManager:',
-            '    def __init__(self, name, mode): self.name=name; self.mode=mode',
-            '    def __enter__(self):', 
-            '        self.file = open(self.name, self.mode); return self.file',
-            '    def __exit__(self, exc_type, exc_val, exc_tb):',
-            '        self.file.close()',
-            '',
-            'with FileManager("test.txt", "w") as f:',
-            '    f.write("Using context manager!")',
-            '# File automatically closed after with block',
-        ]),
-        Paragraph('<b>CONCLUSION:</b> Magic methods transform custom classes into first-class Python citizens. They allow custom objects to support arithmetic, comparison, indexing, iteration, string conversion, and much more — using standard Python syntax. Operator overloading is heavily used in libraries like NumPy and Pandas to make mathematical operations intuitive.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 9: METACLASSES
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(9, 'METACLASSES IN PYTHON', 7))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is a Metaclass?', S['subtopic']))
-    story.append(Paragraph(
-        'In Python, <b>everything is an object</b> — including classes. A <b>metaclass</b> is the '
-        '<b>class of a class</b>. Just as an object is an instance of a class, a class is an instance '
-        'of its metaclass. By default, the metaclass for all Python classes is <b>type</b>. '
-        'Metaclasses allow you to control class <b>CREATION</b> — you can intercept class creation, '
-        'modify class attributes, enforce rules (like interfaces), add methods automatically, etc. '
-        'Used in frameworks like Django and SQLAlchemy.', S['body']))
-    story.append(colored_box(
-        '🔑 MEMORY HIERARCHY: Object → instance of → Class → instance of → Metaclass (type)\n'
-        'type is Python\'s default metaclass. type(42) → <class int>. type(int) → <class type>.',
-        LIGHT_ORANGE, ORANGE))
-    story.append(vspace(6))
-
-    story.append(code_block([
-        '# type — The built-in metaclass',
-        'class Dog:',
-        '    def bark(self): print("Woof!")',
-        '',
-        'print(type(Dog))    # <class "type"> — Dog\'s metaclass is type',
-        'print(type(42))     # <class "int">',
-        'print(type("hello"))# <class "str">',
-        'print(type(type))   # <class "type"> — type is its OWN metaclass!',
-        '',
-        '# Create a class DYNAMICALLY using type()',
-        '# Syntax: type(class_name, bases_tuple, attributes_dict)',
-        'Cat = type("Cat", (), {"sound": "Meow",',
-        '                        "speak": lambda self: print("Meow!")})',
-        'c = Cat()',
-        'c.speak()           # Meow!',
-        'print(Cat.sound)    # Meow',
-        '',
-        '# Dynamic subclass',
-        'Animal = type("Animal", (), {"breathe": lambda self: print("Breathing")})',
-        'Dog2   = type("Dog2", (Animal,), {"bark": lambda self: print("Woof!")})',
-        'd = Dog2()',
-        'd.breathe()  # From Animal',
-        'd.bark()     # From Dog2',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Custom Metaclass', S['subtopic']))
-    story.append(code_block([
-        '# Custom metaclass — converts all method names to UPPERCASE',
-        'class MyMeta(type):',
-        '    def __new__(mcs, name, bases, attrs):',
-        '        uppercase_attrs = {}',
-        '        for key, val in attrs.items():',
-        '            if not key.startswith("__"):   # Skip dunder methods',
-        '                uppercase_attrs[key.upper()] = val',
-        '            else:',
-        '                uppercase_attrs[key] = val',
-        '        return super().__new__(mcs, name, bases, uppercase_attrs)',
-        '',
-        'class MyClass(metaclass=MyMeta):',
-        '    def hello(self):',
-        '        print("Hello!")',
-        '',
-        'obj = MyClass()',
-        'obj.HELLO()   # Method was renamed to uppercase!',
-        '',
-        '# Validation metaclass — enforce all methods are lowercase',
-        'class ValidationMeta(type):',
-        '    def __new__(mcs, name, bases, attrs):',
-        '        for key in attrs:',
-        '            if not key.startswith("_") and not key.islower():',
-        '                raise TypeError(f"Method {key} must be lowercase!")',
-        '        return super().__new__(mcs, name, bases, attrs)',
-        '',
-        'class MyAPI(metaclass=ValidationMeta):',
-        '    def get_data(self): pass   # OK — lowercase',
-        '    # def GetData(self): pass  # This WOULD raise TypeError!',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Singleton Pattern using Metaclass', S['subtopic']))
-    story.append(code_block([
-        '# Singleton — ensures only ONE instance of a class ever exists',
-        'class SingletonMeta(type):',
-        '    _instances = {}',
-        '    def __call__(cls, *args, **kwargs):',
-        '        if cls not in cls._instances:',
-        '            cls._instances[cls] = super().__call__(*args, **kwargs)',
-        '        return cls._instances[cls]  # Always return same instance',
-        '',
-        'class Database(metaclass=SingletonMeta):',
-        '    def __init__(self): self.connection = "Connected"',
-        '',
-        'db1 = Database()',
-        'db2 = Database()',
-        'print(db1 is db2)        # True — SAME instance!',
-        'print(id(db1) == id(db2))# True — same memory address',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Metaclasses
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — METACLASSES', S['subtopic']))
-
-    elems = qa_block(5, 'What are metaclasses in Python? Explain with an example.', [
-        Paragraph('<b>METACLASS IN PYTHON:</b> In Python, everything is an object — even classes. The type of a class is called its metaclass. The default metaclass in Python is <b>type</b>.', S['answer']),
-        Paragraph('<b>THE HIERARCHY:</b>', S['body_bold']),
-        Paragraph('• Object is an instance of → Class', S['bullet']),
-        Paragraph('• Class is an instance of → Metaclass (type, by default)', S['bullet']),
-        Paragraph('• type is its OWN metaclass!', S['bullet']),
-        code_block(['class Dog: pass', 'print(type(Dog))   # <class "type"> — metaclass is type', 'print(type(type))  # <class "type"> — type is its own metaclass']),
-        Paragraph('<b>CREATING CLASSES WITH type():</b> type() can dynamically create a class at runtime. Syntax: type(name, bases, attributes_dict)', S['body_bold']),
-        code_block(['Animal = type("Animal", (), {"legs": 4, "breathe": lambda self: print("Breathing")})', 'a = Animal()', 'a.breathe()    # Breathing', 'print(Animal.legs)  # 4']),
-        Paragraph('<b>CUSTOM METACLASS:</b> Inherit from type and override __new__ or __init__ to control class creation.', S['body_bold']),
-        code_block([
-            'class ValidationMeta(type):',
-            '    def __new__(mcs, name, bases, attrs):',
-            '        for key in attrs:',
-            '            if not key.startswith("_") and not key.islower():',
-            '                raise TypeError(f"Method {key} must be lowercase!")',
-            '        return super().__new__(mcs, name, bases, attrs)',
-            '',
-            'class MyAPI(metaclass=ValidationMeta):',
-            '    def get_data(self): pass   # OK',
-        ]),
-        Paragraph('<b>USE CASES OF METACLASSES:</b>', S['body_bold']),
-        Paragraph('• Enforcing coding standards (all methods lowercase/uppercase)', S['bullet']),
-        Paragraph('• Singleton Pattern — only one instance of a class', S['bullet']),
-        Paragraph('• Django ORM Models — automatically creates database schema', S['bullet']),
-        Paragraph('• Abstract Base Classes (ABC) use metaclass=ABCMeta internally', S['bullet']),
-        Paragraph('• Automatic registration of subclasses (plugin systems)', S['bullet']),
-        Paragraph('Metaclasses are advanced Python, typically used in framework development. Understanding them shows deep Python mastery.', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 10: ABSTRACT & INNER CLASSES
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(10, 'ABSTRACT & INNER CLASSES', 7))
-    story.append(vspace(8))
-
-    story.append(Paragraph('Abstract Classes', S['subtopic']))
-    story.append(Paragraph(
-        'An <b>abstract class</b> is a class that <b>CANNOT be instantiated</b> (you cannot create objects of it directly). '
-        'It acts as a <b>blueprint/contract</b> for other classes. It can define <b>abstract methods</b> — '
-        'methods that have NO implementation in the abstract class but <b>MUST be implemented</b> by any child class. '
-        'In Python, abstract classes are created using the <b>abc module</b> (Abstract Base Classes).', S['body']))
-    story.append(colored_box(
-        '⚠️ CRITICAL RULE: If a child class does NOT implement ALL abstract methods, '
-        'it also becomes abstract and cannot be instantiated! Attempting to instantiate '
-        'an abstract class raises TypeError.',
-        LIGHT_RED, RED))
-    story.append(vspace(6))
-
-    story.append(code_block([
-        'from abc import ABC, abstractmethod',
-        '',
-        'class Shape(ABC):                  # Abstract class — inherits from ABC',
-        '    @abstractmethod',
-        '    def area(self):                # Abstract method — no implementation',
-        '        pass',
-        '',
-        '    @abstractmethod',
-        '    def perimeter(self):           # Another abstract method',
-        '        pass',
-        '',
-        '    def describe(self):            # CONCRETE (non-abstract) method',
-        '        print(f"I am a shape with area {self.area()}")',
-        '',
-        '# s = Shape()   # ERROR! Cannot instantiate abstract class',
-        '# TypeError: Can\'t instantiate abstract class Shape',
-        '',
-        'class Circle(Shape):',
-        '    def __init__(self, r): self.r = r',
-        '    def area(self):        return 3.14 * self.r**2   # MUST implement!',
-        '    def perimeter(self):   return 2 * 3.14 * self.r  # MUST implement!',
-        '',
-        'class Rectangle(Shape):',
-        '    def __init__(self, l, w): self.l = l; self.w = w',
-        '    def area(self):           return self.l * self.w',
-        '    def perimeter(self):      return 2*(self.l + self.w)',
-        '',
-        'c = Circle(5)',
-        'r = Rectangle(4, 6)',
-        '',
-        'c.describe()      # I am a shape with area 78.5 — inherited!',
-        'print(r.area())   # 24',
-        'print(c.perimeter())  # 31.4',
-        '',
-        '# Polymorphism with abstract classes',
-        'shapes = [Circle(3), Rectangle(4,5), Circle(7)]',
-        'for shape in shapes:',
-        '    print(f"Area: {shape.area():.2f}")',
-    ]))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Inner Classes (Nested Classes)', S['subtopic']))
-    story.append(Paragraph(
-        'An <b>inner class</b> (nested class) is a class defined <b>INSIDE another class</b>. '
-        'The outer class can use the inner class to logically group related functionality. '
-        'Inner classes help organize complex data structures and <b>hide implementation details</b> (encapsulation).', S['body']))
-    story.append(code_block([
-        'class University:',
-        '    def __init__(self, name):',
-        '        self.name = name',
-        '        self.dept = self.Department("Computer Science")  # Inner class instance',
-        '',
-        '    class Department:              # Inner class — defined inside University',
-        '        def __init__(self, dname):',
-        '            self.dname = dname',
-        '',
-        '        def info(self):',
-        '            print(f"Department: {self.dname}")',
-        '',
-        '    def info(self):',
-        '        print(f"University: {self.name}")',
-        '        self.dept.info()           # Uses inner class',
-        '',
-        '',
-        'u = University("ABC University")',
-        'u.info()',
-        '# University: ABC University',
-        '# Department: Computer Science',
-        '',
-        '# Access inner class from OUTSIDE:',
-        'd = University.Department("Physics")',
-        'd.info()   # Department: Physics',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Abstract
-    story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — ABSTRACT & INNER CLASSES', S['subtopic']))
-
-    elems = qa_block(1.5, 'What is an abstract class in Python? Can you instantiate it?', [
-        Paragraph('An <b>abstract class</b> is a class that <b>cannot be instantiated</b> directly. It is defined using Python\'s <b>ABC (Abstract Base Class)</b> module. It contains <b>abstract methods</b> that must be overridden by all subclasses.', S['answer']),
-        code_block(['from abc import ABC, abstractmethod', 'class Animal(ABC):', '    @abstractmethod', '    def sound(self): pass  # Must implement in child']),
-        Paragraph('<b>No</b> — you cannot create an object of an abstract class. Attempting raises <b>TypeError</b>: "Can\'t instantiate abstract class". It serves as a template/contract for subclasses.', S['answer']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain abstract classes and inner classes in Python with examples.', [
-        Paragraph('<b>ABSTRACT CLASSES:</b> An abstract class is a class with at least one abstract method. It serves as a template/contract — any subclass must implement all abstract methods. Uses the <b>abc module</b>.', S['answer']),
-        code_block([
-            'from abc import ABC, abstractmethod',
-            '',
-            'class Animal(ABC):',
-            '    @abstractmethod',
-            '    def sound(self): pass   # Must implement in all subclasses',
-            '',
-            '    @abstractmethod',
-            '    def move(self): pass',
-            '',
-            '    def breathe(self):      # Concrete — inherited as-is',
-            '        print(f"{self.__class__.__name__} breathes air")',
-            '',
-            '# a = Animal()   # TypeError!',
-            '',
-            'class Dog(Animal):',
-            '    def sound(self): print("Woof")',
-            '    def move(self):  print("Dog runs")',
-            '',
-            'class Fish(Animal):',
-            '    def sound(self): print("...")',
-            '    def move(self):  print("Fish swims")',
-            '',
-            'd = Dog(); d.sound(); d.breathe()  # Works!',
-        ]),
-        Paragraph('<b>KEY POINTS:</b>', S['body_bold']),
-        Paragraph('• Abstract class cannot be instantiated directly', S['bullet']),
-        Paragraph('• Abstract method has @abstractmethod decorator and no implementation body', S['bullet']),
-        Paragraph('• Subclass MUST implement ALL abstract methods or it also becomes abstract', S['bullet']),
-        Paragraph('• Can have both abstract and concrete (normal) methods', S['bullet']),
-        Paragraph('<b>INNER CLASSES:</b> A class defined inside another class body. Used for logical grouping and encapsulation.', S['body_bold']),
-        code_block([
-            'class Car:',
-            '    def __init__(self, brand):',
-            '        self.brand  = brand',
-            '        self.engine = self.Engine(1500, "Petrol")',
-            '',
-            '    class Engine:              # Inner class',
-            '        def __init__(self, cc, fuel):',
-            '            self.cc = cc; self.fuel = fuel',
-            '        def specs(self):',
-            '            print(f"Engine: {self.cc}cc, {self.fuel}")',
-            '',
-            '    def show(self):',
-            '        print(f"Car: {self.brand}")',
-            '        self.engine.specs()',
-            '',
-            'c = Car("Toyota")',
-            'c.show()',
-            '# Car: Toyota',
-            '# Engine: 1500cc, Petrol',
-        ]),
-        Paragraph('<b>USES OF INNER CLASSES:</b> Logical grouping of related classes | Hiding implementation details (encapsulation) | Linked list nodes/tree nodes inside container class | GUI components (Frame inside Window).', S['answer']),
-    ])
-    story.extend(elems)
-    story.append(PageBreak())
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 11: EXCEPTION HANDLING
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(11, 'EXCEPTION HANDLING', 9))
-    story.append(colored_box('⚡ GUARANTEED IN PAPER — 9% Probability — All Mark Types Expected!', LIGHT_RED, RED, 'note'))
-    story.append(vspace(8))
-
-    story.append(Paragraph('What is an Exception?', S['subtopic']))
-    story.append(Paragraph(
-        'An <b>exception</b> is an error that occurs during program execution (runtime). '
-        'When Python encounters an error it cannot handle, it <b>raises an exception</b> that, '
-        'if not caught, terminates the program. '
-        '<b>Exception Handling</b> is the mechanism to gracefully handle such runtime errors, '
-        'log them, and allow the program to continue or fail safely instead of crashing.', S['body']))
-    story.append(vspace(6))
-
-    story.append(Paragraph('Common Built-in Exceptions', S['subtopic']))
-    story.append(simple_table(
-        ['Exception', 'Cause / When It Occurs'],
-        [
-            ['ZeroDivisionError', 'Dividing by zero: 10 / 0'],
-            ['ValueError', 'Wrong value passed: int("abc")'],
-            ['TypeError', 'Wrong type for operation: "hello" + 5'],
-            ['NameError', 'Variable not defined/not in scope'],
-            ['IndexError', 'List index out of range: lst[100]'],
-            ['KeyError', 'Dictionary key not found: d["missing_key"]'],
-            ['FileNotFoundError', 'Trying to open a file that doesn\'t exist'],
-            ['AttributeError', 'Object doesn\'t have the attribute: obj.missing_attr'],
-            ['ImportError', 'Module cannot be imported'],
-            ['RecursionError', 'Maximum recursion depth exceeded'],
-            ['StopIteration', 'Iterator has no more items (next() called)'],
-            ['OverflowError', 'Numeric value too large for Python to represent'],
-        ],
-        [5*cm, 10*cm]
-    ))
-    story.append(vspace(6))
-
-    story.append(Paragraph('try-except-else-finally — Complete Structure', S['subtopic']))
-    story.append(code_block([
-        'try:',
-        '    # Code that MIGHT raise an exception — put risky code here',
-        '    risky_code()',
-        '',
-        'except SomeException as e:',
-        '    # Runs ONLY if SomeException occurs in try block',
-        '    print(f"Error: {e}")',
-        '',
-        'except (TypeError, ValueError) as e:',
-        '    # Catches MULTIPLE exception types in one clause',
-        '    print(f"Type/Value Error: {e}")',
-        '',
-        'except Exception as e:',
-        '    # Catches ANY exception — general catch-all (use as last resort)',
-        '    print(f"Unexpected error: {e}")',
-        '',
+    story.append(Paragraph('One-Sample t-Test — Complete Python Example', S('subtopic')))
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
+        '',
+        '# PROBLEM: A school claims average marks = 70.',
+        '# Sample of 12 students gives marks below. Test at alpha=0.05.',
+        'sample = [65, 72, 68, 74, 61, 78, 69, 71, 64, 73, 70, 67]',
+        '',
+        '# Step 1: State Hypotheses',
+        '# H0: mu = 70  (school claim is correct)',
+        '# H1: mu != 70 (two-tailed test)',
+        '',
+        '# Step 2: Significance level',
+        'alpha = 0.05',
+        '',
+        '# Step 3 & 4: Compute t-statistic and p-value',
+        't_stat, p_value = stats.ttest_1samp(sample, popmean=70)',
+        'print(f"Sample Mean: {np.mean(sample):.4f}")',
+        'print(f"t-statistic: {t_stat:.4f}")',
+        'print(f"p-value:     {p_value:.4f}")',
+        '',
+        '# Step 5 & 6: Decision',
+        'if p_value < alpha:',
+        '    print("REJECT H0: Significant evidence that mean != 70")',
         'else:',
-        '    # Runs ONLY if NO exception occurred in try block',
-        '    print("Success! No error occurred.")',
+        '    print("FAIL TO REJECT H0: No significant evidence against mean=70")',
         '',
-        'finally:',
-        '    # ALWAYS runs — whether exception occurred or not',
-        '    # Used for cleanup: close files, DB connections, release resources',
-        '    print("Cleanup code here")',
+        '# Step 7: Conclusion',
+        '# If p > 0.05: The sample does not provide enough evidence to reject',
+        '# the school claim that the true average is 70.',
     ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Comprehensive Practical Example', S['subtopic']))
-    story.append(code_block([
-        'def safe_division(a, b):',
-        '    try:',
-        '        result = a / b',
-        '    except ZeroDivisionError:',
-        '        print("Error: Cannot divide by zero!")',
-        '        return None',
-        '    except TypeError as e:',
-        '        print(f"Type Error: {e}")',
-        '        return None',
-        '    else:',
-        '        print(f"{a} / {b} = {result}")',
-        '        return result',
-        '    finally:',
-        '        print("Division function executed.")   # Always runs',
+    story.append(Paragraph('One-tailed vs Two-tailed Tests', S('subtopic')))
+    story.append(stbl(
+        ['Test Type','Hypothesis','When to Use','Critical Region'],
+        [
+            ['Two-tailed','H1: mu != mu0 (not equal to)','When we only care if it is different (either direction)',
+             'Both tails: alpha/2 in each tail'],
+            ['Right-tailed (upper)','H1: mu > mu0 (greater than)','When we suspect the mean is HIGHER',
+             'Right tail only: alpha'],
+            ['Left-tailed (lower)','H1: mu < mu0 (less than)','When we suspect the mean is LOWER',
+             'Left tail only: alpha'],
+        ],
+        [3*cm, 3.5*cm, 4.5*cm, 4*cm]
+    ))
+    story.append(vs(4))
+    story.append(cblock([
+        '# Two-tailed test (default)',
+        't_two, p_two = stats.ttest_1samp(sample, popmean=70)',
         '',
-        'safe_division(10, 2)   # 10 / 2 = 5.0 → Division function executed.',
-        'safe_division(10, 0)   # Error: Cannot divide by zero! → Division function executed.',
-        'safe_division(10,"a")  # Type Error → Division function executed.',
+        '# One-tailed (right) test: H1: mu > 70',
+        'p_right = p_two / 2 if t_two > 0 else 1 - p_two/2',
+        '',
+        '# One-tailed (left) test: H1: mu < 70',
+        'p_left = p_two / 2 if t_two < 0 else 1 - p_two/2',
+        '',
+        '# Or use alternative parameter in newer scipy:',
+        't_g, p_g = stats.ttest_1samp(sample, 70, alternative="greater")',
+        't_l, p_l = stats.ttest_1samp(sample, 70, alternative="less")',
     ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    story.append(Paragraph('Raising Exceptions — raise', S['subtopic']))
-    story.append(code_block([
-        'def check_age(age):',
-        '    if not isinstance(age, int):',
-        '        raise TypeError("Age must be an integer!")',
-        '    if age < 0 or age > 150:',
-        '        raise ValueError(f"Invalid age: {age}. Must be 0-150.")',
-        '    print(f"Valid age: {age}")',
-        '',
-        'check_age(25)    # Valid age: 25',
-        'check_age(-5)    # ValueError: Invalid age: -5. Must be 0-150.',
-        'check_age("abc") # TypeError: Age must be an integer!',
-    ]))
-    story.append(vspace(6))
+    story.append(Paragraph('Type I and Type II Errors', S('subtopic')))
+    story.append(stbl(
+        ['Error Type','Definition','Probability','Consequence','Remedy'],
+        [
+            ['Type I Error (alpha)\nFalse Positive',
+             'Rejecting H0 when it is actually TRUE',
+             'alpha (significance level)',
+             'Concluding effect exists when it does not',
+             'Lower alpha (e.g., 0.01 instead of 0.05)'],
+            ['Type II Error (beta)\nFalse Negative',
+             'Failing to reject H0 when it is actually FALSE',
+             'beta',
+             'Missing a real effect',
+             'Increase sample size, use more powerful test'],
+            ['Power = 1-beta','Probability of correctly rejecting false H0',
+             '1-beta','Desirable to be high (>0.8)','Larger n, larger effect size, lower sigma'],
+        ],
+        [3*cm, 4*cm, 2*cm, 3.5*cm, 3*cm]
+    ))
+    story.append(vs(6))
 
-    story.append(Paragraph('Custom (User-Defined) Exceptions', S['subtopic']))
-    story.append(code_block([
-        '# Custom exception inherits from Exception',
-        'class InsufficientFundsError(Exception):',
-        '    def __init__(self, balance, amount):',
-        '        self.balance = balance',
-        '        self.amount  = amount',
-        '        message = f"Need Rs.{amount} but only have Rs.{balance}"',
-        '        super().__init__(message)  # Call parent Exception __init__',
-        '',
-        'class BankAccount:',
-        '    def __init__(self, balance): self.balance = balance',
-        '',
-        '    def withdraw(self, amount):',
-        '        if amount > self.balance:',
-        '            raise InsufficientFundsError(self.balance, amount)',
-        '        self.balance -= amount',
-        '        print(f"Withdrew Rs.{amount}. Balance: Rs.{self.balance}")',
-        '',
-        'acc = BankAccount(5000)',
-        'try:',
-        '    acc.withdraw(3000)   # OK — Withdrew Rs.3000. Balance: Rs.2000',
-        '    acc.withdraw(5000)   # Raises InsufficientFundsError!',
-        'except InsufficientFundsError as e:',
-        '    print(f"Custom Error: {e}")',
-        '    # Custom Error: Need Rs.5000 but only have Rs.2000',
-    ]))
-    story.append(vspace(6))
-
-    # Q&A Exception
+    # Q&A Topic 4
     story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — EXCEPTION HANDLING', S['subtopic']))
+    story.append(Paragraph('EXAM QUESTIONS — HYPOTHESIS TESTING', S('subtopic')))
 
-    elems = qa_block(1.5, 'What is the role of "finally" block in exception handling?', [
-        Paragraph('The <b>"finally"</b> block <b>always executes</b> regardless of whether an exception occurred or was caught. It is used for <b>cleanup operations</b> like closing files, database connections, or releasing resources.', S['answer']),
-        code_block(['try:', '    f = open("data.txt")', '    data = f.read()', 'except FileNotFoundError:', '    print("File not found!")', 'finally:', '    f.close()   # ALWAYS runs — even if exception occurred']),
-        Paragraph('"finally" runs even if the program exits via return or sys.exit(). It guarantees cleanup code always executes.', S['answer']),
-    ])
-    story.extend(elems)
+    story.extend(qa(1.5, 'What is hypothesis testing?', [
+        Paragraph('<b>Hypothesis testing</b> is a statistical method to decide whether there is enough evidence in a sample to support or reject a claim about a population parameter.', S('ans')),
+        Paragraph('<b>H0 (Null Hypothesis):</b> Default assumption — no effect or difference exists.', S('bullet')),
+        Paragraph('<b>H1 (Alternative Hypothesis):</b> The claim we want to test.', S('bullet')),
+        Paragraph('If <b>p-value < alpha</b> (significance level, usually 0.05), we <b>reject H0</b>. Otherwise we <b>fail to reject H0</b>.', S('ans')),
+    ]))
 
-    elems = qa_block(10, 'Write a program in Python to demonstrate Exception Handling. Explain with custom exceptions, raise, and practical examples.', [
-        Paragraph('<b>EXCEPTION HANDLING IN PYTHON — COMPLETE GUIDE:</b>', S['body_bold']),
-        Paragraph('<b>WHAT IS AN EXCEPTION?</b> An exception is a runtime error that disrupts the normal flow of a program. Python provides a robust exception handling mechanism using try-except-else-finally blocks.', S['answer']),
-        Paragraph('<b>EXCEPTION HIERARCHY:</b>', S['body_bold']),
-        Paragraph('BaseException → Exception → ArithmeticError → ZeroDivisionError', S['bullet']),
-        Paragraph('Exception → LookupError → IndexError, KeyError', S['bullet']),
-        Paragraph('Exception → ValueError, TypeError, IOError → FileNotFoundError', S['bullet']),
-        Paragraph('<b>BASIC try-except:</b>', S['body_bold']),
-        code_block([
-            'try:',
-            '    num    = int(input("Enter number: "))',
-            '    result = 100 / num',
-            '    print(f"Result: {result}")',
-            'except ZeroDivisionError:',
-            '    print("Cannot divide by zero!")',
-            'except ValueError:',
-            '    print("Invalid input — must be a number!")',
-        ]),
-        Paragraph('<b>MULTIPLE EXCEPT CLAUSES + else + finally:</b>', S['body_bold']),
-        code_block([
-            'def process_data(data):',
-            '    try:',
-            '        result = [int(x) for x in data]',
-            '        total  = sum(result)',
-            '    except ValueError as e:',
-            '        print(f"Conversion Error: {e}")',
-            '        return None',
-            '    else:',
-            '        print(f"Processing successful! Total: {total}")',
-            '        return total',
-            '    finally:',
-            '        print("process_data() function completed.")',
+    story.extend(qa(10, 'What is hypothesis testing? Explain the various steps used in hypothesis testing with a complete example and Python code.', [
+        Paragraph('<b>HYPOTHESIS TESTING</b> is a formal statistical procedure to make evidence-based decisions about population parameters using sample data. It answers: "Is the observed difference real or just due to chance?"', S('ans')),
+        Paragraph('<b>KEY TERMINOLOGY:</b>', S('body_bold')),
+        Paragraph('<b>H0 (Null Hypothesis):</b> Statement of no effect/difference. Always assumed true initially. Example: H0: mu = 70.', S('bullet')),
+        Paragraph('<b>H1 (Alternative Hypothesis):</b> The claim being tested. Example: H1: mu != 70.', S('bullet')),
+        Paragraph('<b>p-value:</b> Probability of observing results as extreme as ours IF H0 is true. Small p = strong evidence against H0.', S('bullet')),
+        Paragraph('<b>alpha:</b> Significance level. Usually 0.05. If p < alpha, reject H0.', S('bullet')),
+        Paragraph('<b>7 STEPS OF HYPOTHESIS TESTING:</b>', S('body_bold')),
+        Paragraph('Step 1: STATE HYPOTHESES — Define H0 and H1 clearly.', S('bullet')),
+        Paragraph('Step 2: CHOOSE SIGNIFICANCE LEVEL — Usually alpha = 0.05 or 0.01.', S('bullet')),
+        Paragraph('Step 3: SELECT APPROPRIATE TEST — Based on data type, sample size, number of groups.', S('bullet')),
+        Paragraph('Step 4: COMPUTE TEST STATISTIC — Calculate t, z, chi-square, or F value.', S('bullet')),
+        Paragraph('Step 5: FIND p-VALUE — Using tables or scipy.stats functions.', S('bullet')),
+        Paragraph('Step 6: MAKE DECISION — If p < alpha: reject H0. If p >= alpha: fail to reject H0.', S('bullet')),
+        Paragraph('Step 7: INTERPRET CONCLUSION — State result in context of original problem.', S('bullet')),
+        Paragraph('<b>COMPLETE EXAMPLE — One-Sample t-Test:</b>', S('body_bold')),
+        Paragraph('Problem: A company claims average delivery time is 5 days. A random sample of 10 deliveries gave: [6,4,5,7,5,6,4,5,6,8]. Test at alpha=0.05.', S('ans')),
+        cblock([
+            'import numpy as np',
+            'from scipy import stats',
             '',
-            'process_data(["1","2","3"])   # Success',
-            'process_data(["1","abc","3"]) # ValueError caught',
-        ]),
-        Paragraph('<b>USING raise — Deliberately raise exceptions:</b>', S['body_bold']),
-        code_block([
-            'def validate_score(score):',
-            '    if not isinstance(score, (int, float)):',
-            '        raise TypeError(f"Score must be numeric")',
-            '    if score < 0 or score > 100:',
-            '        raise ValueError(f"Score {score} out of range [0-100]")',
-            '    return True',
-        ]),
-        Paragraph('<b>CUSTOM EXCEPTIONS — For domain-specific errors:</b>', S['body_bold']),
-        code_block([
-            'class AgeError(Exception):',
-            '    def __init__(self, age, message="Invalid age"):',
-            '        self.age = age',
-            '        super().__init__(f"{message}: {age}")',
+            '# Data',
+            'deliveries = [6, 4, 5, 7, 5, 6, 4, 5, 6, 8]',
             '',
-            'class VoterRegistration:',
-            '    def register(self, name, age):',
-            '        try:',
-            '            if age < 18:',
-            '                raise AgeError(age, "Must be 18+ to register")',
-            '            print(f"{name} registered successfully!")',
-            '        except AgeError as e:',
-            '            print(f"Registration Failed — {e}")',
+            '# Step 1: Hypotheses',
+            '# H0: mu = 5  (company claim is correct)',
+            '# H1: mu != 5 (two-tailed test)',
             '',
-            'v = VoterRegistration()',
-            'v.register("Alice", 25)  # Registered successfully!',
-            'v.register("Bob",   16)  # Registration Failed — Must be 18+: 16',
+            '# Step 2: alpha = 0.05',
+            '',
+            '# Step 3: One-sample t-test (n=10, sigma unknown)',
+            '',
+            '# Step 4 & 5: Test statistic and p-value',
+            't_stat, p_value = stats.ttest_1samp(deliveries, popmean=5)',
+            '',
+            'print(f"Sample Mean : {np.mean(deliveries):.2f}")    # 5.6',
+            'print(f"Std Dev     : {np.std(deliveries,ddof=1):.2f}")',
+            'print(f"t-statistic : {t_stat:.4f}")',
+            'print(f"p-value     : {p_value:.4f}")',
+            '',
+            '# Step 6: Decision',
+            'alpha = 0.05',
+            'if p_value < alpha:',
+            '    print(f"p={p_value:.4f} < {alpha}: REJECT H0")',
+            'else:',
+            '    print(f"p={p_value:.4f} >= {alpha}: FAIL TO REJECT H0")',
+            '',
+            '# Step 7: Conclusion',
+            '# If p < 0.05: Evidence suggests delivery time is NOT 5 days.',
+            '# If p >= 0.05: Insufficient evidence to contradict the claim.',
         ]),
-        Paragraph('<b>CONTEXT MANAGER (with) FOR AUTOMATIC CLEANUP:</b>', S['body_bold']),
-        code_block([
-            'try:',
-            '    with open("data.txt", "r") as f:  # File closes automatically!',
-            '        data = f.read()',
-            'except FileNotFoundError:',
-            '    print("File not found!")',
+        Paragraph('<b>TYPES OF ERRORS:</b>', S('body_bold')),
+        Paragraph('Type I Error (alpha): Reject true H0 — False Positive. Probability = alpha.', S('bullet')),
+        Paragraph('Type II Error (beta): Fail to reject false H0 — False Negative. Probability = beta.', S('bullet')),
+        Paragraph('Power = 1 - beta: Probability of correctly detecting a real effect. Should be > 0.8.', S('bullet')),
+        Paragraph('<b>CONCLUSION:</b> Hypothesis testing is the backbone of statistical inference. Always clearly state H0 and H1 before collecting data, choose alpha appropriately, and interpret the result in the context of the real-world problem.', S('ans')),
+    ]))
+
+    story.extend(qa(15, 'Explain hypothesis testing in complete detail. Include: types of tests, one-tailed vs two-tailed, Type I and II errors, p-value interpretation, and implement z-test, t-test with full Python code.', [
+        Paragraph('<b>HYPOTHESIS TESTING — COMPREHENSIVE GUIDE:</b>', S('body_bold')),
+        Paragraph('<b>DEFINITION:</b> Hypothesis testing is a formal statistical framework for making decisions about population parameters based on sample evidence. It answers: "Is the observed effect real (statistically significant) or just due to random chance?"', S('ans')),
+        Paragraph('<b>THE HYPOTHESIS FRAMEWORK:</b>', S('body_bold')),
+        Paragraph('<b>H0 (Null Hypothesis):</b> The default claim. Assumes no effect, no difference, or no relationship. We start by assuming H0 is true. Examples: mu=70, p=0.5, means are equal.', S('bullet')),
+        Paragraph('<b>H1 (Alternative Hypothesis):</b> The research claim. What we want to prove. Can be two-tailed (!=), right-tailed (>), or left-tailed (<).', S('bullet')),
+        Paragraph('<b>ONE-TAILED vs TWO-TAILED TESTS:</b>', S('body_bold')),
+        stbl(
+            ['Test','H1','Use When','p-value'],
+            [
+                ['Two-tailed','mu != mu0','Effect in either direction possible','Full p from test'],
+                ['Right-tailed','mu > mu0','Expecting mean to be HIGHER','p = p_two/2 if t>0'],
+                ['Left-tailed','mu < mu0','Expecting mean to be LOWER','p = p_two/2 if t<0'],
+            ],
+            [3*cm, 3*cm, 5*cm, 4*cm]
+        ),
+        vs(4),
+        Paragraph('<b>COMPLETE z-TEST (large sample n>30):</b>', S('body_bold')),
+        cblock([
+            '# z-test: population sigma known or n > 30',
+            'import numpy as np',
+            'from scipy import stats',
+            '',
+            '# Problem: Population sigma=15. Sample n=36, mean=72.',
+            '# Test H0: mu=70, H1: mu>70 at alpha=0.05',
+            'pop_sigma = 15',
+            'n = 36',
+            'x_bar = 72',
+            'mu0 = 70',
+            '',
+            '# Compute z-statistic',
+            'se = pop_sigma / np.sqrt(n)',
+            'z = (x_bar - mu0) / se',
+            'print(f"z = {z:.4f}")   # 0.8000',
+            '',
+            '# p-value for right-tailed',
+            'p = 1 - stats.norm.cdf(z)',
+            'print(f"p = {p:.4f}")   # 0.2119',
+            '',
+            'if p < 0.05:',
+            '    print("Reject H0")',
+            'else:',
+            '    print("Fail to reject H0")  # This will print',
         ]),
-        Paragraph('<b>BEST PRACTICES:</b>', S['body_bold']),
-        Paragraph('• Always catch SPECIFIC exceptions, not bare except:', S['bullet']),
-        Paragraph('• Always clean up resources in finally block', S['bullet']),
-        Paragraph('• Use custom exceptions for domain-specific errors', S['bullet']),
-        Paragraph('• Never use exceptions for normal control flow', S['bullet']),
-        Paragraph('• Always log exceptions with context for debugging', S['bullet']),
-        Paragraph('Exception handling is critical in data analytics — reading corrupt data files, handling network failures, and processing malformed inputs all require robust exception handling.', S['answer']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>COMPLETE t-TEST (small sample, sigma unknown):</b>', S('body_bold')),
+        cblock([
+            '# One-sample t-test',
+            'data = [62, 68, 75, 58, 72, 65, 70, 55, 68, 73]',
+            'mu0  = 65',
+            '',
+            't_stat, p_two = stats.ttest_1samp(data, mu0)',
+            'print(f"t = {t_stat:.4f}")',
+            'print(f"p (two-tailed) = {p_two:.4f}")',
+            '',
+            '# Two-sample t-test (comparing two groups)',
+            'group1 = [75, 80, 85, 72, 78, 82]',
+            'group2 = [65, 70, 68, 72, 74, 69]',
+            't2, p2 = stats.ttest_ind(group1, group2)',
+            'print(f"Two-sample t = {t2:.4f}, p = {p2:.4f}")',
+            '',
+            '# Paired t-test (before/after)',
+            'before = [200, 210, 190, 220, 185]',
+            'after  = [195, 200, 188, 215, 180]',
+            'tp, pp = stats.ttest_rel(before, after)',
+            'print(f"Paired t = {tp:.4f}, p = {pp:.4f}")',
+        ]),
+        Paragraph('<b>TYPE I AND TYPE II ERRORS — DETAILED:</b>', S('body_bold')),
+        stbl(
+            ['','H0 is True','H0 is False'],
+            [
+                ['Reject H0','Type I Error (alpha)\nFalse Positive','Correct Decision\nTrue Positive (Power = 1-beta)'],
+                ['Fail to Reject H0','Correct Decision\nTrue Negative','Type II Error (beta)\nFalse Negative'],
+            ],
+            [3*cm, 5.5*cm, 6.5*cm]
+        ),
+        vs(4),
+        Paragraph('<b>p-VALUE INTERPRETATION GUIDE:</b>', S('body_bold')),
+        stbl(
+            ['p-value Range','Interpretation'],
+            [
+                ['p < 0.001','Extremely strong evidence against H0. Highly significant.'],
+                ['0.001 <= p < 0.01','Very strong evidence against H0. Highly significant.'],
+                ['0.01 <= p < 0.05','Moderate evidence against H0. Statistically significant.'],
+                ['0.05 <= p < 0.10','Weak evidence against H0. Marginal significance.'],
+                ['p >= 0.10','Little to no evidence against H0. Not significant.'],
+            ],
+            [3.5*cm, 11.5*cm]
+        ),
+        vs(4),
+        Paragraph('<b>IMPORTANT NOTES:</b>', S('body_bold')),
+        Paragraph('1. p-value is NOT the probability that H0 is true. It is P(data | H0).', S('bullet')),
+        Paragraph('2. Statistical significance does NOT imply practical significance. A large sample can make tiny differences significant.', S('bullet')),
+        Paragraph('3. "Fail to reject H0" does NOT mean H0 is proved true — it means insufficient evidence.', S('bullet')),
+        Paragraph('4. Always state hypothesis BEFORE looking at data to avoid p-hacking.', S('bullet')),
+        Paragraph('<b>CONCLUSION:</b> Hypothesis testing is the cornerstone of scientific inquiry and data-driven decision making. Mastering the 7-step procedure, understanding p-values, recognizing test types, and avoiding common misinterpretations are essential skills for any data analyst.', S('ans')),
+    ]))
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TOPIC 12: PACKAGES
-    # ══════════════════════════════════════════════════════════════════════════
-    story.append(topic_header_box(12, 'MODULAR PROGRAMS & PACKAGES', 5))
-    story.append(vspace(8))
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 5: TWO-SAMPLE TESTING
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(5,'TWO-SAMPLE TESTING',10))
+    story.append(vs(8))
 
-    story.append(Paragraph('What are Modules?', S['subtopic']))
+    story.append(Paragraph('What is Two-Sample Testing?', S('subtopic')))
     story.append(Paragraph(
-        'A <b>module</b> is a Python file (.py) containing functions, classes, and variables that '
-        'can be reused in other programs. Instead of writing all code in one file, you split it '
-        'into multiple modules — this is called <b>modular programming</b>. '
-        'Python has hundreds of built-in modules (os, sys, math, random, datetime, csv, json, etc.) '
-        'and millions of third-party modules available via pip.', S['body']))
-    story.append(code_block([
-        '# geometry.py — Our custom module',
-        'PI = 3.14159',
-        'def circle_area(r): return PI * r * r',
-        'def rect_area(l, w): return l * w',
-        'def factorial(n): return 1 if n<=1 else n*factorial(n-1)',
-        '',
-        '# main.py — Using our module',
-        'import geometry                     # Full import',
-        'print(geometry.circle_area(5))      # 78.539...',
-        '',
-        'from geometry import circle_area    # Import specific function',
-        'print(circle_area(5))               # No need for prefix',
-        '',
-        'import geometry as geo             # Alias — shorter name',
-        'print(geo.rect_area(4, 6))          # 24',
-        '',
-        'from geometry import *             # Import everything (NOT recommended)',
-        '',
-        '# Built-in modules',
-        'import math;     print(math.sqrt(16))      # 4.0',
-        'import os;       print(os.getcwd())         # Current directory',
-        'import random;   print(random.randint(1,100))',
-        'import datetime; print(datetime.date.today())',
-        'import json;     data = json.dumps({"key":"value"})',
-    ]))
-    story.append(vspace(6))
+        '<b>Two-sample tests</b> compare parameters of <b>two separate groups</b> to determine '
+        'if there is a statistically significant difference. '
+        'Examples: comparing exam scores of male vs female students, '
+        'drug vs placebo effect, method A vs method B. '
+        'Three types: Independent samples, Paired samples, and testing for equality of variances.', S('body')))
+    story.append(vs(6))
 
-    story.append(Paragraph('What are Packages?', S['subtopic']))
-    story.append(Paragraph(
-        'A <b>package</b> is a directory/folder containing multiple modules, organized together. '
-        'It must contain a special file called <b>__init__.py</b> (can be empty or contain initialization code) '
-        'to tell Python that the directory is a package. '
-        'Packages enable organizing large codebases into logical namespaces.', S['body']))
-    story.append(code_block([
-        '# Package directory structure:',
-        'analytics/              # Package (directory)',
-        '    __init__.py         # Makes it a package — required!',
-        '    data_loader.py      # Module 1',
-        '    preprocessor.py     # Module 2',
-        '    visualizer.py       # Module 3',
-        '    models/             # Sub-package (nested package)',
-        '        __init__.py',
-        '        linear_model.py',
-        '        neural_net.py',
-        '',
-        '# Using the package:',
-        'from analytics import data_loader',
-        'from analytics.models import linear_model',
-        'import analytics.preprocessor as prep',
-        '',
-        '# __init__.py can expose selected functions:',
-        '# In analytics/__init__.py:',
-        'from .data_loader import load_csv     # Expose directly',
-        'from .preprocessor import clean_data  # Short access path',
-    ]))
-    story.append(vspace(6))
+    story.append(stbl(
+        ['Test','When to Use','H0','Python Function'],
+        [
+            ['Independent t-test (equal var)','Two independent groups, assume equal variances',
+             'mu1 = mu2','stats.ttest_ind(g1, g2, equal_var=True)'],
+            ['Welch t-test (unequal var)','Two independent groups, unequal/unknown variances',
+             'mu1 = mu2','stats.ttest_ind(g1, g2, equal_var=False)'],
+            ['Paired t-test','Same subjects measured twice (before/after)',
+             'mu_d = 0 (mean difference=0)','stats.ttest_rel(before, after)'],
+            ['Mann-Whitney U test','Non-parametric alternative to independent t-test',
+             'Distributions are equal','stats.mannwhitneyu(g1, g2)'],
+            ['Wilcoxon signed-rank','Non-parametric alternative to paired t-test',
+             'Median difference=0','stats.wilcoxon(before, after)'],
+            ['F-test / Levene test','Test equality of variances between two groups',
+             'sigma1 = sigma2','stats.levene(g1, g2)'],
+        ],
+        [3.5*cm, 4.5*cm, 3*cm, 4*cm]
+    ))
+    story.append(vs(6))
 
-    story.append(Paragraph('__name__ == "__main__" — The Entry Point Guard', S['subtopic']))
-    story.append(Paragraph(
-        'Every Python file has a built-in variable <b>__name__</b>. '
-        'When a file is <b>RUN directly</b>, __name__ equals <b>"__main__"</b>. '
-        'When it is <b>IMPORTED</b> as a module, __name__ equals the module\'s name. '
-        'The guard <b>if __name__ == "__main__":</b> is used to write code that runs '
-        'ONLY when the file is executed directly, NOT when imported.', S['body']))
-    story.append(code_block([
-        '# mymodule.py',
-        'def greet(name): return f"Hello, {name}!"',
-        'def add(a, b):   return a + b',
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
         '',
-        'if __name__ == "__main__":',
-        '    # This block runs ONLY when mymodule.py is run directly',
-        '    # It is SKIPPED when mymodule is imported by another file',
-        '    print(greet("World"))  # Hello, World!',
-        '    print(add(3, 4))       # 7',
-        '    print("Running tests...")',
+        '# ── INDEPENDENT TWO-SAMPLE t-TEST ──────────────────────────',
+        '# Problem: Compare test scores of two teaching methods',
+        'method_A = [85, 90, 78, 92, 88, 76, 95, 83, 87, 91]',
+        'method_B = [75, 80, 72, 85, 79, 68, 88, 74, 81, 77]',
         '',
-        '# When another file does: import mymodule',
-        '# → __name__ = "mymodule" → guard block is SKIPPED',
+        '# H0: mu_A = mu_B (no difference between methods)',
+        '# H1: mu_A != mu_B',
+        '',
+        '# Check variance equality first with Levene test',
+        'lev_stat, lev_p = stats.levene(method_A, method_B)',
+        'print(f"Levene p-value: {lev_p:.4f}")',
+        '',
+        '# If lev_p > 0.05: use equal_var=True (Student t-test)',
+        '# If lev_p < 0.05: use equal_var=False (Welch t-test)',
+        't_stat, p_val = stats.ttest_ind(method_A, method_B, equal_var=False)',
+        'print(f"t-statistic: {t_stat:.4f}")',
+        'print(f"p-value:     {p_val:.4f}")',
+        'print(f"Mean A: {np.mean(method_A):.2f}, Mean B: {np.mean(method_B):.2f}")',
+        '',
+        '# ── PAIRED t-TEST ────────────────────────────────────────',
+        '# Problem: Blood pressure before and after medication (same patients)',
+        'before = [160, 155, 170, 148, 162, 158, 175, 152]',
+        'after  = [145, 148, 155, 140, 150, 145, 160, 138]',
+        '',
+        '# H0: mu_difference = 0 (medication has no effect)',
+        '# H1: mu_difference != 0',
+        't_p, p_p = stats.ttest_rel(before, after)',
+        'differences = np.array(before) - np.array(after)',
+        'print(f"Mean difference: {np.mean(differences):.2f}")',
+        'print(f"t-statistic: {t_p:.4f}")',
+        'print(f"p-value:     {p_p:.4f}")',
+        '',
+        '# ── NON-PARAMETRIC: Mann-Whitney U ───────────────────────',
+        'u_stat, p_mw = stats.mannwhitneyu(method_A, method_B, alternative="two-sided")',
+        'print(f"Mann-Whitney U: {u_stat:.4f}, p: {p_mw:.4f}")',
     ]))
-    story.append(vspace(6))
+    story.append(vs(6))
 
-    # Q&A Packages
+    # Q&A Topic 5
     story.append(hr(TEAL))
-    story.append(Paragraph('📝 EXAM QUESTIONS — PACKAGES', S['subtopic']))
+    story.append(Paragraph('EXAM QUESTIONS — TWO SAMPLE TESTING', S('subtopic')))
 
-    elems = qa_block(1.5, 'What is the difference between a module and a package in Python? Also explain what are Packages.', [
-        Paragraph('<b>Module:</b> A single Python <b>.py file</b> containing functions, classes, and variables. Imported using "import module_name".', S['answer']),
-        Paragraph('<b>Package:</b> A <b>directory of modules</b> with a special <b>__init__.py</b> file. Enables organizing multiple related modules together under one namespace.', S['answer']),
-        Paragraph('<b>Example:</b> "math" is a module. "numpy" or "pandas" is a package containing many sub-modules and sub-packages inside.', S['answer']),
-        code_block(['import math            # Module', 'import numpy as np     # Package', 'from os import path    # Importing from a module']),
-    ])
-    story.extend(elems)
-
-    elems = qa_block(5, 'Explain modules and packages in Python with how to create and import them.', [
-        Paragraph('<b>MODULES IN PYTHON:</b> A module is a .py file containing Python code (functions, classes, variables) that can be reused in other scripts. Promotes code reuse and modular programming.', S['answer']),
-        Paragraph('<b>CREATING A MODULE (geometry.py):</b>', S['body_bold']),
-        code_block([
-            'PI = 3.14159',
-            'def circle_area(r):   return PI * r * r',
-            'def rect_area(l, w):  return l * w',
-            'class Triangle:',
-            '    def __init__(self, b, h): self.b=b; self.h=h',
-            '    def area(self):  return 0.5 * self.b * self.h',
+    story.extend(qa(5, 'What is two-sample testing? Explain independent t-test and paired t-test with Python code.', [
+        Paragraph('<b>TWO-SAMPLE TESTING</b> compares parameters (usually means) of two groups to determine if they are significantly different. H0: mu1 = mu2. H1: mu1 != mu2 (two-tailed) or mu1 > mu2 / mu1 < mu2 (one-tailed).', S('ans')),
+        Paragraph('<b>1. INDEPENDENT TWO-SAMPLE t-TEST:</b> Used when two groups have NO relationship. Example: compare marks of class A vs class B.', S('body_bold')),
+        cblock([
+            'group1 = [85, 90, 78, 92, 88, 76]   # Class A',
+            'group2 = [75, 80, 72, 85, 79, 68]   # Class B',
+            't, p = stats.ttest_ind(group1, group2, equal_var=False)',
+            'print(f"t={t:.4f}, p={p:.4f}")',
+            'if p < 0.05: print("Significant difference between classes")',
+            'else: print("No significant difference")',
         ]),
-        Paragraph('<b>IMPORTING A MODULE:</b>', S['body_bold']),
-        code_block([
-            'import geometry                  # Full import',
-            'print(geometry.circle_area(5))',
-            '',
-            'from geometry import rect_area   # Specific import',
-            'print(rect_area(4, 6))',
-            '',
-            'import geometry as geo           # Alias',
-            'print(geo.PI)',
+        Paragraph('<b>2. PAIRED t-TEST:</b> Used when same subjects measured twice. Example: before and after treatment.', S('body_bold')),
+        cblock([
+            'before = [200, 215, 190, 225, 210]',
+            'after  = [190, 200, 185, 210, 195]',
+            'tp, pp = stats.ttest_rel(before, after)',
+            'd = np.array(before) - np.array(after)',
+            'print(f"Avg reduction: {np.mean(d):.2f}")',
+            'print(f"t={tp:.4f}, p={pp:.4f}")',
+            'if pp < 0.05: print("Treatment has significant effect")',
         ]),
-        Paragraph('<b>PACKAGES:</b> A package is a directory with __init__.py containing multiple modules. Packages organize large codebases into logical namespaces.', S['body_bold']),
-        Paragraph('<b>STRUCTURE:</b>', S['body_bold']),
-        code_block([
-            'mypackage/',
-            '    __init__.py    # Required — makes it a package',
-            '    module1.py',
-            '    module2.py',
-            '    subpackage/',
-            '        __init__.py',
-            '        module3.py',
-        ]),
-        Paragraph('<b>IMPORTING FROM PACKAGE:</b>', S['body_bold']),
-        code_block([
-            'import mypackage.module1',
-            'from mypackage import module2',
-            'from mypackage.subpackage import module3',
-        ]),
-        Paragraph('<b>__name__ GUARD:</b>', S['body_bold']),
-        code_block(['if __name__ == "__main__":', '    # Only runs when file is directly executed', '    run_tests()']),
-        Paragraph('<b>THIRD-PARTY PACKAGES:</b> Install via pip: pip install numpy pandas matplotlib. Then import: import numpy as np; import pandas as pd.', S['answer']),
-    ])
-    story.extend(elems)
+        Paragraph('<b>KEY DIFFERENCE:</b> Independent t-test: Two different groups, no link between observations. Paired t-test: Same group measured twice, observations are linked.', S('ans')),
+    ]))
     story.append(PageBreak())
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # QUICK REVISION CHEAT SHEET
-    # ══════════════════════════════════════════════════════════════════════════
-    banner_data = [[Paragraph('⚡ QUICK REVISION CHEAT SHEET — MODULE 1', S['module_banner'])]]
-    bt = Table(banner_data, colWidths=[W-4*cm])
-    bt.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), TEAL),
-        ('TOPPADDING', (0,0), (-1,-1), 14),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 14),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 6: ONE-WAY ANOVA
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(6,'ONE-WAY ANOVA (Analysis of Variance)',12))
+    story.append(vs(8))
+
+    story.append(Paragraph('What is ANOVA?', S('subtopic')))
+    story.append(Paragraph(
+        '<b>ANOVA (Analysis of Variance)</b> is a statistical technique used to compare '
+        'the means of <b>three or more groups</b> simultaneously. '
+        'Instead of running multiple t-tests (which increases Type I error), '
+        'ANOVA tests whether AT LEAST ONE group mean is different. '
+        '<b>One-Way ANOVA</b> has one independent variable (factor) with 3+ levels (groups). '
+        'It compares <b>between-group variance</b> to <b>within-group variance</b> using the F-statistic.', S('body')))
+    story.append(vs(4))
+    story.append(cbox(
+        'H0: mu1 = mu2 = mu3 = ... = muk (ALL group means are equal) | '
+        'H1: At least one group mean is different from the others. | '
+        'ANOVA does NOT tell WHICH groups differ — need Post-hoc tests (Tukey, Bonferroni) for that.',
+        LIGHT_ORANGE, ORANGE))
+    story.append(vs(6))
+
+    story.append(Paragraph('ANOVA Assumptions', S('subtopic')))
+    story.append(Paragraph(
+        '1. <b>Independence:</b> Observations are independent within and across groups. '
+        '2. <b>Normality:</b> Each group\'s data is approximately normally distributed. '
+        '3. <b>Homogeneity of Variances (Homoscedasticity):</b> All groups have approximately equal variances (test with Levene or Bartlett). '
+        '4. <b>Continuous dependent variable:</b> The response variable is measured on interval/ratio scale.', S('body')))
+    story.append(vs(6))
+
+    story.append(Paragraph('ANOVA Calculations — Step by Step', S('subtopic')))
+    story.append(stbl(
+        ['Term','Symbol','Formula','Meaning'],
+        [
+            ['Grand Mean','x-bar-grand','Sum of all observations / total N','Overall mean across all groups'],
+            ['Sum of Squares Between','SSB','Sum of ni*(xi-bar - grand-mean)^2','Variation BETWEEN group means'],
+            ['Sum of Squares Within','SSW','Sum of (xij - xi-bar)^2 for all i,j','Variation WITHIN each group'],
+            ['Total SS','SST','SSB + SSW','Total variation in data'],
+            ['Degrees of Freedom Between','dfB','k - 1 (k=number of groups)','Groups minus 1'],
+            ['Degrees of Freedom Within','dfW','N - k (N=total observations)','Total N minus groups'],
+            ['Mean Square Between','MSB','SSB / dfB','Average between-group variance'],
+            ['Mean Square Within','MSW','SSW / dfW','Average within-group variance (pooled error)'],
+            ['F-statistic','F','MSB / MSW','Ratio of between to within variance'],
+        ],
+        [4*cm, 2*cm, 4.5*cm, 4.5*cm]
+    ))
+    story.append(vs(6))
+
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
+        '',
+        '# PROBLEM from exam paper:',
+        '# Three teaching methods, test scores:',
+        'group1 = [56, 58, 60, 62, 64]   # Traditional',
+        'group2 = [68, 70, 72, 74, 76]   # Online',
+        'group3 = [75, 78, 80, 82, 85]   # Blended',
+        '',
+        '# H0: mu1 = mu2 = mu3 (all teaching methods give same scores)',
+        '# H1: At least one method gives significantly different scores',
+        '# alpha = 0.05',
+        '',
+        '# ── METHOD 1: scipy.stats.f_oneway ────────────────────────',
+        'f_stat, p_value = stats.f_oneway(group1, group2, group3)',
+        'print(f"F-statistic: {f_stat:.4f}")',
+        'print(f"p-value:     {p_value:.4f}")',
+        '',
+        'if p_value < 0.05:',
+        '    print("REJECT H0: Significant difference between teaching methods")',
+        'else:',
+        '    print("FAIL TO REJECT H0: No significant difference")',
+        '',
+        '# ── METHOD 2: Manual ANOVA Table ──────────────────────────',
+        'all_data = group1 + group2 + group3',
+        'N = len(all_data)',
+        'k = 3                              # Number of groups',
+        'grand_mean = np.mean(all_data)',
+        '',
+        'groups = [group1, group2, group3]',
+        'group_means = [np.mean(g) for g in groups]',
+        'group_ns    = [len(g) for g in groups]',
+        '',
+        '# SSB — Sum of Squares Between groups',
+        'SSB = sum(n*(m - grand_mean)**2 for n,m in zip(group_ns, group_means))',
+        '',
+        '# SSW — Sum of Squares Within groups',
+        'SSW = sum(sum((x - m)**2 for x in g) for g, m in zip(groups, group_means))',
+        '',
+        '# SST = SSB + SSW',
+        'SST = SSB + SSW',
+        '',
+        '# Degrees of freedom',
+        'dfB = k - 1       # 2',
+        'dfW = N - k       # 12',
+        '',
+        '# Mean Squares',
+        'MSB = SSB / dfB',
+        'MSW = SSW / dfW',
+        '',
+        '# F-statistic',
+        'F = MSB / MSW',
+        'p = 1 - stats.f.cdf(F, dfB, dfW)',
+        '',
+        'print(f"SSB = {SSB:.2f}, SSW = {SSW:.2f}, SST = {SST:.2f}")',
+        'print(f"MSB = {MSB:.2f}, MSW = {MSW:.2f}")',
+        'print(f"F   = {F:.4f},  p   = {p:.6f}")',
+        '',
+        '# ── POST-HOC TEST: Tukey HSD (which groups differ?) ───────',
+        'from statsmodels.stats.multicomp import pairwise_tukeyhsd',
+        'import pandas as pd',
+        '',
+        'data_col  = group1 + group2 + group3',
+        'group_col = ["Trad"]*5 + ["Online"]*5 + ["Blended"]*5',
+        '',
+        'result = pairwise_tukeyhsd(data_col, group_col, alpha=0.05)',
+        'print(result)',
     ]))
-    story.append(bt)
-    story.append(vspace(10))
+    story.append(vs(6))
+
+    story.append(Paragraph('ANOVA Summary Table Format', S('subtopic')))
+    story.append(stbl(
+        ['Source of Variation','SS','df','MS','F','p-value','Decision'],
+        [
+            ['Between Groups (Treatment)','SSB','k-1','MSB=SSB/dfB','F=MSB/MSW','from F-table','Reject H0 if p < alpha'],
+            ['Within Groups (Error)','SSW','N-k','MSW=SSW/dfW','—','—','—'],
+            ['Total','SST=SSB+SSW','N-1','—','—','—','—'],
+        ],
+        [3.5*cm, 1.5*cm, 1.2*cm, 2.5*cm, 2*cm, 2*cm, 2.3*cm]
+    ))
+    story.append(vs(6))
+
+    # Q&A Topic 6
+    story.append(hr(TEAL))
+    story.append(Paragraph('EXAM QUESTIONS — ONE-WAY ANOVA', S('subtopic')))
+
+    story.extend(qa(1.5, 'Differentiate between classification and clustering. (Also: When do we use ANOVA vs t-test?)', [
+        Paragraph('<b>Classification:</b> A supervised learning technique where the model learns from labeled data to predict the category of new observations. Labels are known during training. Example: spam/not-spam email detection.', S('ans')),
+        Paragraph('<b>Clustering:</b> An unsupervised learning technique where the model groups similar data points together WITHOUT predefined labels. Labels are discovered from data. Example: customer segmentation by purchase behavior.', S('ans')),
+        Paragraph('<b>ANOVA vs t-test:</b> Use t-test for 2 groups. Use ANOVA for 3 or more groups (avoids inflated Type I error from multiple t-tests).', S('ans')),
+    ]))
+
+    story.extend(qa(10, 'What is ANOVA? A researcher wants to know if average test scores from three teaching methods are the same. Perform ANOVA analysis with the given data: Group 1(Traditional):56,58,60,62,64 | Group 2(Online):68,70,72,74,76 | Group 3(Blended):75,78,80,82,85', [
+        Paragraph('<b>ANOVA (Analysis of Variance)</b> tests whether the means of three or more groups are statistically equal. It compares between-group variance to within-group variance via the F-statistic.', S('ans')),
+        Paragraph('<b>H0: mu1 = mu2 = mu3</b> (all teaching methods produce same scores)', S('bullet')),
+        Paragraph('<b>H1: At least one mean is different</b>', S('bullet')),
+        Paragraph('<b>alpha = 0.05</b>', S('bullet')),
+        Paragraph('<b>MANUAL CALCULATIONS:</b>', S('body_bold')),
+        cblock([
+            'group1 = [56, 58, 60, 62, 64]   # Traditional — mean=60.0',
+            'group2 = [68, 70, 72, 74, 76]   # Online      — mean=72.0',
+            'group3 = [75, 78, 80, 82, 85]   # Blended     — mean=80.0',
+            '',
+            'N=15, k=3, grand_mean = (60+72+80)/3 = 70.67 (approx)',
+            '',
+            '# SSB = 5*(60-70.67)^2 + 5*(72-70.67)^2 + 5*(80-70.67)^2',
+            '#     = 5*113.78 + 5*1.78 + 5*86.78',
+            '#     = 568.9 + 8.9 + 433.9 = 1011.7',
+            '',
+            '# SSW = sum of squared deviations within each group',
+            '# Group1: (-4)^2+(-2)^2+0^2+2^2+4^2 = 40',
+            '# Group2: same pattern = 40',
+            '# Group3: (-5)^2+(-2)^2+0^2+2^2+5^2 = 58',
+            '# SSW = 40+40+58 = 138',
+            '',
+            '# dfB = k-1 = 2, dfW = N-k = 12',
+            '# MSB = 1011.7/2 = 505.85',
+            '# MSW = 138/12 = 11.5',
+            '# F   = 505.85/11.5 = 44.0 (approx)',
+        ]),
+        Paragraph('<b>PYTHON IMPLEMENTATION:</b>', S('body_bold')),
+        cblock([
+            'from scipy import stats',
+            '',
+            'group1 = [56, 58, 60, 62, 64]',
+            'group2 = [68, 70, 72, 74, 76]',
+            'group3 = [75, 78, 80, 82, 85]',
+            '',
+            'f_stat, p_value = stats.f_oneway(group1, group2, group3)',
+            'print(f"F-statistic = {f_stat:.4f}")',
+            'print(f"p-value     = {p_value:.8f}")',
+            '',
+            'alpha = 0.05',
+            'if p_value < alpha:',
+            '    print("REJECT H0: Teaching methods have significantly different outcomes")',
+            'else:',
+            '    print("FAIL TO REJECT H0")',
+        ]),
+        Paragraph('<b>ANOVA TABLE:</b>', S('body_bold')),
+        stbl(
+            ['Source','SS','df','MS','F','p-value'],
+            [
+                ['Between Groups','~1011.7','2','~505.85','~44.0','< 0.0001'],
+                ['Within Groups','~138.0','12','~11.5','—','—'],
+                ['Total','~1149.7','14','—','—','—'],
+            ],
+            [3.5*cm, 2.5*cm, 1.2*cm, 2.5*cm, 2*cm, 3.3*cm]
+        ),
+        vs(4),
+        Paragraph('<b>CONCLUSION:</b> Since F = ~44.0 and p-value << 0.05, we REJECT H0. There is strong statistical evidence that at least one teaching method produces significantly different test scores. Post-hoc tests (Tukey HSD) can identify which specific pairs differ.', S('ans')),
+    ]))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 7: TWO-WAY ANOVA
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(7,'TWO-WAY ANOVA',10))
+    story.append(vs(8))
+
+    story.append(Paragraph('What is Two-Way ANOVA?', S('subtopic')))
+    story.append(Paragraph(
+        '<b>Two-Way ANOVA</b> extends One-Way ANOVA to examine the effect of '
+        '<b>TWO independent variables (factors)</b> on a dependent variable simultaneously. '
+        'It tests: (1) Main effect of Factor A, (2) Main effect of Factor B, and '
+        '(3) <b>Interaction effect</b> of A x B (does the effect of A depend on B?). '
+        'Interaction is the unique and most important insight of Two-Way ANOVA.', S('body')))
+    story.append(vs(4))
+    story.append(cbox(
+        'THREE HYPOTHESES in Two-Way ANOVA: '
+        'H0_A: No main effect of Factor A | '
+        'H0_B: No main effect of Factor B | '
+        'H0_AxB: No interaction between A and B. '
+        'Each tested separately using its own F-statistic.',
+        LIGHT_GREEN, GREEN))
+    story.append(vs(6))
+
+    story.append(Paragraph('Two-Way ANOVA — Concepts', S('subtopic')))
+    story.append(stbl(
+        ['Term','Description','Interpretation'],
+        [
+            ['Main Effect of A','Effect of Factor A averaging over all levels of B','Does Factor A independently affect outcome?'],
+            ['Main Effect of B','Effect of Factor B averaging over all levels of A','Does Factor B independently affect outcome?'],
+            ['Interaction A x B','Effect of A depends on the level of B (or vice versa)','Most interesting finding in Two-Way ANOVA'],
+            ['No Interaction','Effect of A is same regardless of level of B','Lines in interaction plot are PARALLEL'],
+            ['Interaction Present','Effect of A changes depending on level of B','Lines in interaction plot CROSS or are NOT parallel'],
+            ['Cell Mean','Mean of observations at specific (A level, B level) combination','Each cell = one treatment combination'],
+        ],
+        [3*cm, 5*cm, 7*cm]
+    ))
+    story.append(vs(6))
+
+    story.append(cblock([
+        'import pandas as pd',
+        'import numpy as np',
+        'from scipy import stats',
+        'import statsmodels.api as sm',
+        'from statsmodels.formula.api import ols',
+        '',
+        '# PROBLEM: Effect of fertilizer type AND watering frequency on plant growth',
+        '# Factor A: Fertilizer (Type1, Type2)',
+        '# Factor B: Watering (Low, High)',
+        '',
+        'data = pd.DataFrame({',
+        '    "growth": [20, 22, 24, 18, 25, 27, 30, 28,',
+        '               32, 35, 38, 30, 40, 42, 45, 38],',
+        '    "fertilizer": ["F1","F1","F1","F1","F1","F1","F1","F1",',
+        '                   "F2","F2","F2","F2","F2","F2","F2","F2"],',
+        '    "watering":   ["Low","Low","Low","Low","High","High","High","High",',
+        '                   "Low","Low","Low","Low","High","High","High","High"],',
+        '})',
+        '',
+        '# Two-Way ANOVA with interaction',
+        'model  = ols("growth ~ C(fertilizer) + C(watering) + C(fertilizer):C(watering)",',
+        '             data=data).fit()',
+        'anova_table = sm.stats.anova_lm(model, typ=2)',
+        'print(anova_table)',
+        '',
+        '# Output shows:',
+        '# C(fertilizer)              — Main effect of fertilizer',
+        '# C(watering)                — Main effect of watering',
+        '# C(fertilizer):C(watering)  — Interaction effect',
+        '# Residual                   — Within-group error',
+        '',
+        '# Interpret each row:',
+        '# If PR(>F) < 0.05: that effect is statistically significant',
+        '',
+        '# Check assumptions',
+        'residuals = model.resid',
+        'stat, p_normal = stats.shapiro(residuals)',
+        'print(f"Shapiro-Wilk (normality): p = {p_normal:.4f}")',
+    ]))
+    story.append(vs(6))
+
+    # Q&A Topic 7
+    story.append(hr(TEAL))
+    story.append(Paragraph('EXAM QUESTIONS — TWO-WAY ANOVA', S('subtopic')))
+
+    story.extend(qa(5, 'What is Two-Way ANOVA? How does it differ from One-Way ANOVA? Explain with example.', [
+        Paragraph('<b>TWO-WAY ANOVA</b> extends One-Way ANOVA to test the effects of TWO independent factors simultaneously. It tests three things: main effect of Factor A, main effect of Factor B, and their interaction (A x B).', S('ans')),
+        Paragraph('<b>ONE-WAY vs TWO-WAY ANOVA:</b>', S('body_bold')),
+        stbl(
+            ['Feature','One-Way ANOVA','Two-Way ANOVA'],
+            [
+                ['Factors','1 independent variable','2 independent variables'],
+                ['Hypotheses','1 H0 (all means equal)','3 H0 (main A, main B, interaction)'],
+                ['Example','3 teaching methods on scores','Teaching method + gender effect on scores'],
+                ['Interaction','Cannot detect','CAN detect if A and B interact'],
+                ['F-statistics','1 F value','3 separate F values'],
+            ],
+            [3.5*cm, 5*cm, 6.5*cm]
+        ),
+        vs(4),
+        Paragraph('<b>EXAMPLE:</b> Testing effect of Drug Type (A, B) AND Dosage (Low, High) on pain relief.', S('body_bold')),
+        cblock([
+            '# Main effect of Drug: Does drug type affect pain relief overall?',
+            '# Main effect of Dosage: Does dosage level affect pain relief overall?',
+            '# Interaction: Does the effect of drug type DEPEND on dosage level?',
+            '',
+            'model = ols("pain_relief ~ C(drug) + C(dosage) + C(drug):C(dosage)",',
+            '            data=df).fit()',
+            'anova_table = sm.stats.anova_lm(model, typ=2)',
+            'print(anova_table)',
+            '# Interpret: rows with PR(>F) < 0.05 have significant effects',
+        ]),
+        Paragraph('<b>INTERACTION INTERPRETATION:</b> If the interaction term is significant (p < 0.05), it means the effect of one factor CHANGES depending on the level of the other. This is the most important finding in Two-Way ANOVA.', S('ans')),
+    ]))
+
+    story.extend(qa(10, 'Explain Two-Way ANOVA in detail. What are main effects and interaction effects? How to interpret the ANOVA table?', [
+        Paragraph('<b>TWO-WAY ANOVA</b> simultaneously examines the effect of two categorical independent variables (factors) on a continuous dependent variable. It is more efficient than running separate one-way ANOVAs because it also detects INTERACTIONS.', S('ans')),
+        Paragraph('<b>THREE COMPONENTS TESTED:</b>', S('body_bold')),
+        Paragraph('<b>1. Main Effect of Factor A:</b> The overall effect of Factor A, averaging across all levels of Factor B. H0: All levels of A produce equal means.', S('bullet')),
+        Paragraph('<b>2. Main Effect of Factor B:</b> The overall effect of Factor B, averaging across all levels of Factor A. H0: All levels of B produce equal means.', S('bullet')),
+        Paragraph('<b>3. Interaction Effect A x B:</b> Does the effect of Factor A depend on which level of Factor B is present? H0: No interaction. This is the UNIQUE insight of Two-Way ANOVA.', S('bullet')),
+        Paragraph('<b>UNDERSTANDING INTERACTION:</b>', S('body_bold')),
+        Paragraph('NO interaction: Drug A works better than Drug B regardless of whether dosage is low or high — lines in interaction plot are PARALLEL.', S('bullet')),
+        Paragraph('INTERACTION PRESENT: Drug A works better at low dose but Drug B works better at high dose — lines CROSS in interaction plot.', S('bullet')),
+        Paragraph('<b>COMPLETE PYTHON EXAMPLE:</b>', S('body_bold')),
+        cblock([
+            'import pandas as pd',
+            'import statsmodels.api as sm',
+            'from statsmodels.formula.api import ols',
+            '',
+            '# Dataset: Effect of Study Hours AND Coaching on exam scores',
+            'data = pd.DataFrame({',
+            '    "score": [60,65,70,75,70,75,80,85, 72,78,82,88,82,88,92,96],',
+            '    "hours": ["Low","Low","Low","Low","High","High","High","High",',
+            '              "Low","Low","Low","Low","High","High","High","High"],',
+            '    "coaching": ["No","No","No","No","No","No","No","No",',
+            '                 "Yes","Yes","Yes","Yes","Yes","Yes","Yes","Yes"],',
+            '})',
+            '',
+            '# Build model with interaction term',
+            'model = ols("score ~ C(hours) + C(coaching) + C(hours):C(coaching)",',
+            '            data=data).fit()',
+            '',
+            '# Two-Way ANOVA Table',
+            'anova = sm.stats.anova_lm(model, typ=2)',
+            'print(anova)',
+            '# Columns: sum_sq, df, F, PR(>F)',
+            '# Rows: C(hours), C(coaching), C(hours):C(coaching), Residual',
+            '',
+            '# Interpretation:',
+            '# C(hours)            PR>F < 0.05 => Study hours significantly affect scores',
+            '# C(coaching)         PR>F < 0.05 => Coaching significantly affects scores',
+            '# C(hours):C(coaching)PR>F < 0.05 => Interaction: effect of hours DEPENDS on coaching',
+        ]),
+        Paragraph('<b>TWO-WAY ANOVA TABLE STRUCTURE:</b>', S('body_bold')),
+        stbl(
+            ['Source','SS','df','MS','F','p-value'],
+            [
+                ['Factor A (between A)','SSA','a-1','MSA=SSA/dfA','F_A=MSA/MSE','p_A'],
+                ['Factor B (between B)','SSB','b-1','MSB=SSB/dfB','F_B=MSB/MSE','p_B'],
+                ['Interaction A x B','SSAB','(a-1)(b-1)','MSAB','F_AB=MSAB/MSE','p_AB'],
+                ['Error (within cells)','SSE','N-ab','MSE','—','—'],
+                ['Total','SST','N-1','—','—','—'],
+            ],
+            [3.5*cm, 1.5*cm, 2*cm, 2.5*cm, 2*cm, 3.5*cm]
+        ),
+        vs(4),
+        Paragraph('<b>ASSUMPTIONS:</b> Independence, normality within cells, homogeneity of variance across cells. Check with Shapiro-Wilk for normality and Levene test for equal variance.', S('ans')),
+        Paragraph('<b>CONCLUSION:</b> Two-Way ANOVA is a powerful technique because it is more efficient than multiple one-way tests AND uniquely reveals interaction effects that simpler tests cannot detect.', S('ans')),
+    ]))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 8: PERMUTATION TEST
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(8,'PERMUTATION AND RANDOMIZATION TEST',8))
+    story.append(vs(8))
+
+    story.append(Paragraph('What is a Permutation Test?', S('subtopic')))
+    story.append(Paragraph(
+        'A <b>permutation test</b> (also called a randomization test) is a '
+        '<b>non-parametric</b> hypothesis testing method that does NOT assume '
+        'any particular distribution (like normality). '
+        'It creates the null distribution by randomly shuffling (permuting) the data labels '
+        'many times, computing a test statistic for each permutation, and comparing the '
+        'observed statistic to this distribution. '
+        'It is based on the principle: if H0 is true (no difference), randomly reassigning '
+        'group labels should produce statistics similar to the observed one.', S('body')))
+    story.append(vs(4))
+    story.append(cbox(
+        'KEY ADVANTAGE: No distributional assumptions (non-parametric). '
+        'Works with any test statistic. Perfect for small samples or non-normal data. '
+        'p-value = proportion of permutations with statistic as extreme as observed.',
+        LIGHT_PURPLE, PURPLE))
+    story.append(vs(6))
+
+    story.append(Paragraph('Steps in Permutation Test', S('subtopic')))
+    story.append(stbl(
+        ['Step','Description'],
+        [
+            ['1. Compute observed statistic','Calculate test statistic (e.g., difference in means) for actual data'],
+            ['2. Pool the data','Combine both groups into a single dataset'],
+            ['3. Permute (shuffle) labels','Randomly reassign group labels (many times, e.g., 10,000 iterations)'],
+            ['4. Compute permuted statistic','Calculate test statistic for each permuted dataset'],
+            ['5. Build null distribution','Collect all permuted statistics — this is the null distribution'],
+            ['6. Compute p-value','p = number of permutations with statistic >= observed / total permutations'],
+            ['7. Decision','If p < alpha: reject H0 (observed difference is unlikely under H0)'],
+        ],
+        [3.5*cm, 11.5*cm]
+    ))
+    story.append(vs(6))
+
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
+        '',
+        '# PERMUTATION TEST: Are means of two groups significantly different?',
+        'group_A = np.array([85, 90, 78, 92, 88, 76, 95, 83])',
+        'group_B = np.array([75, 80, 72, 85, 79, 68, 88, 74])',
+        '',
+        '# Step 1: Observed test statistic (difference in means)',
+        'obs_diff = np.mean(group_A) - np.mean(group_B)',
+        'print(f"Observed difference in means: {obs_diff:.4f}")',
+        '',
+        '# Step 2: Pool data',
+        'pooled = np.concatenate([group_A, group_B])',
+        'n_A    = len(group_A)',
+        'n_total= len(pooled)',
+        '',
+        '# Step 3-5: Permutation loop',
+        'n_permutations = 10000',
+        'permuted_diffs = np.zeros(n_permutations)',
+        '',
+        'np.random.seed(42)',
+        'for i in range(n_permutations):',
+        '    shuffled = np.random.permutation(pooled)    # Shuffle labels',
+        '    perm_A   = shuffled[:n_A]                   # First n_A as "group A"',
+        '    perm_B   = shuffled[n_A:]                   # Rest as "group B"',
+        '    permuted_diffs[i] = np.mean(perm_A) - np.mean(perm_B)',
+        '',
+        '# Step 6: p-value (two-tailed)',
+        'p_value = np.mean(np.abs(permuted_diffs) >= np.abs(obs_diff))',
+        'print(f"Permutation test p-value: {p_value:.4f}")',
+        '',
+        '# Compare with parametric t-test',
+        't_stat, p_ttest = stats.ttest_ind(group_A, group_B)',
+        'print(f"t-test p-value:            {p_ttest:.4f}")',
+        '',
+        'if p_value < 0.05:',
+        '    print("REJECT H0: Groups are significantly different")',
+        'else:',
+        '    print("FAIL TO REJECT H0")',
+        '',
+        '# Quick permutation test using scipy',
+        'perm_result = stats.permutation_test(',
+        '    (group_A, group_B),',
+        '    lambda x, y: np.mean(x) - np.mean(y),',
+        '    permutation_type="independent",',
+        '    n_resamples=10000,',
+        '    alternative="two-sided"',
+        ')',
+        'print(f"scipy permutation p: {perm_result.pvalue:.4f}")',
+    ]))
+    story.append(vs(6))
+
+    # Q&A Topic 8
+    story.append(hr(TEAL))
+    story.append(Paragraph('EXAM QUESTIONS — PERMUTATION TEST', S('subtopic')))
+
+    story.extend(qa(5, 'Explain the Permutation and Randomization Test in Python with a complete example.', [
+        Paragraph('<b>PERMUTATION TEST</b> is a non-parametric hypothesis test that creates the null distribution by randomly shuffling data labels many times. It makes NO assumptions about the underlying data distribution.', S('ans')),
+        Paragraph('<b>CORE IDEA:</b> Under H0 (no difference between groups), any random assignment of labels should give a similar result. If the observed difference is much larger than most permuted differences, H0 is rejected.', S('ans')),
+        Paragraph('<b>ALGORITHM:</b>', S('body_bold')),
+        Paragraph('1. Compute observed test statistic (e.g., difference in means)', S('bullet')),
+        Paragraph('2. Pool both groups together', S('bullet')),
+        Paragraph('3. Repeat 10,000 times: shuffle labels, compute statistic', S('bullet')),
+        Paragraph('4. p-value = fraction of permutations with |statistic| >= |observed|', S('bullet')),
+        cblock([
+            'group_A = np.array([25, 30, 28, 35, 32])',
+            'group_B = np.array([18, 22, 20, 25, 23])',
+            '',
+            'obs_diff = np.mean(group_A) - np.mean(group_B)',
+            'pooled   = np.concatenate([group_A, group_B])',
+            'n_A      = len(group_A)',
+            '',
+            'np.random.seed(0)',
+            'perm_diffs = [np.mean(np.random.permutation(pooled)[:n_A]) -',
+            '              np.mean(np.random.permutation(pooled)[n_A:]) for _ in range(10000)]',
+            '',
+            'p_val = np.mean(np.abs(perm_diffs) >= np.abs(obs_diff))',
+            'print(f"Observed: {obs_diff:.2f}, p={p_val:.4f}")',
+            '',
+            'if p_val < 0.05: print("Significant difference!")',
+            'else: print("No significant difference")',
+        ]),
+        Paragraph('<b>WHEN TO USE:</b> Small samples | Non-normal data | Non-standard test statistics | When parametric assumptions are violated. Permutation tests are exact and always valid.', S('ans')),
+    ]))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════
+    # TOPIC 9: CHI-SQUARE TEST
+    # ══════════════════════════════════════════════════════════════
+    story.append(topic_box(9,'CHI-SQUARE TEST',11))
+    story.append(vs(8))
+
+    story.append(Paragraph('What is the Chi-Square Test?', S('subtopic')))
+    story.append(Paragraph(
+        'The <b>Chi-Square (chi2) test</b> is a non-parametric statistical test used for '
+        '<b>categorical data</b>. It compares observed frequencies with expected frequencies. '
+        'There are two main types: '
+        '(1) <b>Chi-Square Goodness of Fit Test</b> — tests if observed data follows an expected distribution. '
+        '(2) <b>Chi-Square Test of Independence</b> — tests if two categorical variables are independent.', S('body')))
+    story.append(vs(4))
+    story.append(cbox(
+        'CHI-SQUARE FORMULA: chi2 = Sum[(Observed - Expected)^2 / Expected] | '
+        'df (goodness of fit) = k - 1 (k = number of categories) | '
+        'df (independence) = (rows-1) * (cols-1) | '
+        'Reject H0 if chi2_calculated > chi2_critical OR if p-value < alpha.',
+        LIGHT_ORANGE, ORANGE))
+    story.append(vs(6))
+
+    story.append(Paragraph('Type 1: Chi-Square Goodness of Fit Test', S('subtopic')))
+    story.append(Paragraph(
+        '<b>Purpose:</b> Tests whether the observed frequency distribution of a categorical variable '
+        'matches an expected (theoretical) distribution. '
+        '<b>H0:</b> Observed frequencies follow the expected distribution. '
+        '<b>H1:</b> Observed frequencies do NOT follow the expected distribution.', S('body')))
+    story.append(cblock([
+        'from scipy import stats',
+        'import numpy as np',
+        '',
+        '# PROBLEM: A die is rolled 60 times. Is it fair?',
+        '# Expected: each face appears 10 times (60/6 = 10)',
+        'observed  = [8, 12, 9, 11, 10, 10]   # Actual counts for faces 1-6',
+        'expected  = [10, 10, 10, 10, 10, 10]  # Fair die: equal probability',
+        '',
+        '# H0: Die is fair (observed matches expected)',
+        '# H1: Die is NOT fair',
+        '',
+        'chi2_stat, p_value = stats.chisquare(f_obs=observed, f_exp=expected)',
+        'print(f"Chi-square statistic: {chi2_stat:.4f}")',
+        'print(f"p-value:             {p_value:.4f}")',
+        'print(f"Degrees of freedom:  {len(observed)-1}")',
+        '',
+        'if p_value < 0.05:',
+        '    print("REJECT H0: Die is NOT fair")',
+        'else:',
+        '    print("FAIL TO REJECT H0: No evidence die is unfair")',
+        '',
+        '# Manual chi-square calculation',
+        'chi2_manual = sum([(o-e)**2/e for o,e in zip(observed, expected)])',
+        'print(f"Manual chi2 = {chi2_manual:.4f}")',
+    ]))
+    story.append(vs(6))
+
+    story.append(Paragraph('Type 2: Chi-Square Test of Independence', S('subtopic')))
+    story.append(Paragraph(
+        '<b>Purpose:</b> Tests whether two categorical variables are <b>independent</b> or associated. '
+        'Uses a <b>contingency table</b> (cross-tabulation) of observed frequencies. '
+        '<b>H0:</b> The two variables are independent (no association). '
+        '<b>H1:</b> The two variables are NOT independent (they are associated). '
+        'Expected frequency for each cell = (row total * col total) / grand total.', S('body')))
+    story.append(cblock([
+        'import numpy as np',
+        'from scipy import stats',
+        'import pandas as pd',
+        '',
+        '# PROBLEM: Is there association between gender and product preference?',
+        '# Contingency table (observed frequencies):',
+        '#              Product A  Product B  Product C',
+        '# Male              30        20        10',
+        '# Female            15        25        20',
+        '',
+        'observed_table = np.array([[30, 20, 10],',
+        '                           [15, 25, 20]])',
+        '',
+        '# H0: Gender and product preference are INDEPENDENT',
+        '# H1: Gender and product preference are ASSOCIATED',
+        '',
+        'chi2, p, dof, expected = stats.chi2_contingency(observed_table)',
+        '',
+        'print(f"Chi-square: {chi2:.4f}")',
+        'print(f"p-value:    {p:.4f}")',
+        'print(f"df:         {dof}")',
+        'print("Expected frequencies:")',
+        'print(np.round(expected, 2))',
+        '',
+        'if p < 0.05:',
+        '    print("REJECT H0: Gender and preference are ASSOCIATED")',
+        'else:',
+        '    print("FAIL TO REJECT H0: Variables are INDEPENDENT")',
+        '',
+        '# Manual expected frequency formula:',
+        '# E_ij = (Row_i total * Col_j total) / Grand total',
+        'row_totals = observed_table.sum(axis=1)',
+        'col_totals = observed_table.sum(axis=0)',
+        'grand_total = observed_table.sum()',
+        '',
+        'for i in range(2):',
+        '    for j in range(3):',
+        '        E = row_totals[i] * col_totals[j] / grand_total',
+        '        O = observed_table[i, j]',
+        '        print(f"Cell({i},{j}): O={O}, E={E:.2f}, (O-E)^2/E={(O-E)**2/E:.4f}")',
+        '',
+        '# Using pandas for cleaner contingency table',
+        'df = pd.DataFrame({',
+        '    "Gender":    ["M"]*60 + ["F"]*60,',
+        '    "Product":   ["A"]*30+["B"]*20+["C"]*10 + ["A"]*15+["B"]*25+["C"]*20',
+        '})',
+        'ct = pd.crosstab(df["Gender"], df["Product"])',
+        'print(ct)',
+        'chi2_pd, p_pd, dof_pd, exp_pd = stats.chi2_contingency(ct)',
+    ]))
+    story.append(vs(6))
+
+    story.append(Paragraph('Chi-Square Test Assumptions and Conditions', S('subtopic')))
+    story.append(stbl(
+        ['Assumption','Requirement','What to Do if Violated'],
+        [
+            ['Sample size','Each expected frequency >= 5 in ALL cells','Combine categories or use Fisher exact test'],
+            ['Independence','Observations are independent','Ensure proper sampling design'],
+            ['Categorical data','Both variables must be categorical (nominal/ordinal)','For continuous: discretize into bins'],
+            ['Random sample','Data is from random sample','Verify sampling methodology'],
+        ],
+        [3.5*cm, 5.5*cm, 6*cm]
+    ))
+    story.append(vs(6))
+
+    # Q&A Topic 9
+    story.append(hr(TEAL))
+    story.append(Paragraph('EXAM QUESTIONS — CHI-SQUARE TEST', S('subtopic')))
+
+    story.extend(qa(1.5, 'What is a Chi-Square test? When is it used?', [
+        Paragraph('The <b>Chi-Square test</b> is a non-parametric statistical test for <b>categorical data</b>. It compares observed and expected frequencies using: chi2 = Sum[(O-E)^2/E].', S('ans')),
+        Paragraph('<b>Used for:</b>', S('body_bold')),
+        Paragraph('1. <b>Goodness of Fit Test:</b> Does observed distribution match expected? (e.g., Is a die fair?)', S('bullet')),
+        Paragraph('2. <b>Test of Independence:</b> Are two categorical variables associated? (e.g., Is gender related to product preference?)', S('bullet')),
+        Paragraph('Reject H0 if p-value < 0.05 (or chi2_calc > chi2_critical).', S('ans')),
+    ]))
+
+    story.extend(qa(10, 'Explain the Chi-Square test in detail. Include goodness of fit test, test of independence, formula, assumptions, and Python implementation.', [
+        Paragraph('<b>CHI-SQUARE TEST</b> is a non-parametric test for categorical variables. It tests whether observed frequencies match expected frequencies. Formula: chi2 = Sum[(O-E)^2/E] where O=observed count, E=expected count.', S('ans')),
+        Paragraph('<b>TYPE 1 — GOODNESS OF FIT TEST:</b>', S('body_bold')),
+        Paragraph('<b>Purpose:</b> Test if observed categorical data follows a specified distribution.', S('bullet')),
+        Paragraph('<b>H0:</b> Observed frequencies match expected distribution.', S('bullet')),
+        Paragraph('<b>H1:</b> Observed frequencies do NOT match.', S('bullet')),
+        Paragraph('<b>df = k - 1</b> where k = number of categories.', S('bullet')),
+        cblock([
+            '# Example: Is a die fair? (60 rolls)',
+            'observed = [8, 12, 9, 11, 10, 10]',
+            'expected = [10, 10, 10, 10, 10, 10]',
+            '',
+            '# Manual: chi2 = (8-10)^2/10 + (12-10)^2/10 + ... = 4/10+4/10+... = 1.0',
+            'chi2, p = stats.chisquare(observed, expected)',
+            'print(f"chi2={chi2:.4f}, p={p:.4f}, df={len(observed)-1}")',
+            '# If p > 0.05: Die appears to be fair',
+        ]),
+        Paragraph('<b>TYPE 2 — TEST OF INDEPENDENCE:</b>', S('body_bold')),
+        Paragraph('<b>Purpose:</b> Test if two categorical variables are independent or associated.', S('bullet')),
+        Paragraph('<b>H0:</b> Variables are independent (no association).', S('bullet')),
+        Paragraph('<b>H1:</b> Variables are associated (dependent).', S('bullet')),
+        Paragraph('<b>Expected frequency formula:</b> E_ij = (Row_i_total * Col_j_total) / Grand_total', S('bullet')),
+        Paragraph('<b>df = (rows-1) * (cols-1)</b>', S('bullet')),
+        cblock([
+            '# Contingency table: Smoking status vs Disease',
+            '#               Disease  No Disease',
+            '# Smoker            50         30',
+            '# Non-Smoker        20        100',
+            'observed = np.array([[50, 30], [20, 100]])',
+            '',
+            'chi2, p, dof, expected = stats.chi2_contingency(observed)',
+            'print(f"chi2={chi2:.4f}")',
+            'print(f"p   ={p:.6f}")',
+            'print(f"df  ={dof}")',
+            'print("Expected:", np.round(expected, 2))',
+            '',
+            '# Interpretation:',
+            '# If p < 0.05: Smoking status and disease ARE associated',
+            '# The two variables are NOT independent',
+        ]),
+        Paragraph('<b>COMPLETE CALCULATION EXAMPLE (Manual):</b>', S('body_bold')),
+        Paragraph('For a 2x2 table with row totals R1, R2 and column totals C1, C2, grand total N:', S('ans')),
+        Paragraph('E11 = R1*C1/N, E12 = R1*C2/N, E21 = R2*C1/N, E22 = R2*C2/N', S('ans')),
+        Paragraph('chi2 = (O11-E11)^2/E11 + (O12-E12)^2/E12 + (O21-E21)^2/E21 + (O22-E22)^2/E22', S('ans')),
+        Paragraph('Compare chi2_calc to chi2_critical from table with df=(rows-1)*(cols-1). If chi2_calc > chi2_critical: REJECT H0.', S('ans')),
+        Paragraph('<b>ASSUMPTIONS:</b> All expected frequencies >= 5. Independent observations. Categorical data. If expected < 5: use Fisher Exact Test.', S('ans')),
+        Paragraph('<b>CONCLUSION:</b> Chi-square test is one of the most widely used statistical tests for analyzing categorical data. It is essential in survey analysis, A/B testing, medical research, and market research for detecting associations between categorical variables.', S('ans')),
+    ]))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════
+    # CHEAT SHEET
+    # ══════════════════════════════════════════════════════════════
+    bt = Table([[Paragraph('QUICK REVISION CHEAT SHEET — MODULE 3 (Statistics)', S('module_banner'))]],
+               colWidths=[W-4*cm])
+    bt.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),TEAL),
+        ('TOPPADDING',(0,0),(-1,-1),14),('BOTTOMPADDING',(0,0),(-1,-1),14),
+        ('LEFTPADDING',(0,0),(-1,-1),10)]))
+    story.append(bt); story.append(vs(10))
 
     cheat = [
-        ['TOPIC', 'KEY POINTS TO REMEMBER', 'EXAM %'],
-        ['Lists', 'Ordered, Mutable, Allows Duplicates, [ ]. Methods: append, pop, sort, reverse, extend. List comprehension: [expr for x in iterable if cond]', '8%'],
-        ['Dictionaries', 'Key-Value pairs, { }. Keys=unique+immutable. Methods: keys(), values(), items(), get(), update(), pop(). Dict comprehension.', '8%'],
-        ['Functions', 'def keyword. 5 argument types: positional, keyword, default, *args, **kwargs. Lambda, decorators (@), recursion, LEGB scope.', '10%'],
-        ['File Handling', 'open(), modes: r/w/a/x/rb/wb. ALWAYS use "with open()" statement. Methods: read(), readline(), readlines(), write(), writelines()', '7%'],
-        ['Class Attrs', 'Class attr=shared by all objects (outside methods). Instance attr=unique per object via self in __init__. @classmethod @staticmethod', '9%'],
-        ['Inheritance', 'Types: Single, Multiple, Multilevel, Hierarchical, Hybrid. super() to call parent. Method overriding = same name different impl.', '12%'],
-        ['MRO', 'C3 Linearization Algorithm. ClassName.mro(). Diamond Problem solved. Order: Child → Parents left-right → object', '8%'],
-        ['Magic Methods', '__init__, __str__, __repr__, __add__, __eq__, __len__, __call__, __iter__. Operator Overloading. Never called directly!', '10%'],
-        ['Metaclasses', 'Class of a class. Default: type. Custom: inherit from type. Control class creation. Singleton pattern. Django uses metaclasses.', '7%'],
-        ['Abstract Classes', 'from abc import ABC, abstractmethod. @abstractmethod. Cannot instantiate abstract class. Child MUST implement all abstract methods.', '7%'],
-        ['Exception Handling', 'try-except-else-finally. raise to manually throw. Custom exceptions inherit from Exception. ZeroDivisionError, ValueError, etc.', '9%'],
-        ['Packages', 'Directory + __init__.py. import/from...import. __name__=="__main__" guard. pip install for third-party packages.', '5%'],
+        ['TOPIC','KEY FORMULAS AND POINTS TO REMEMBER','%'],
+        ['Descriptive Stats',
+         'Mean=Sum(x)/n | Median=middle value (sorted) | Mode=most frequent | '
+         'Variance=Sum((x-mean)^2)/(n-1) | Std=sqrt(Var) | IQR=Q3-Q1 | '
+         'Skewness: positive=right skew, negative=left skew','12%'],
+        ['Probability Distributions',
+         'Normal N(mu,sigma): 68-95-99.7 rule | Binomial B(n,p): mean=np, var=np(1-p) | '
+         'Poisson P(lam): mean=var=lam | t-dist: small samples | F-dist: ANOVA | '
+         'Chi2: categorical tests','12%'],
+        ['Inferential Statistics',
+         'Sample stats estimate population parameters | SE=sigma/sqrt(n) | '
+         '95% CI: xbar +/- 1.96*SE | p-value interpretation | alpha=0.05 (usually) | '
+         'Type I error=alpha, Type II error=beta, Power=1-beta','10%'],
+        ['Hypothesis Testing',
+         '7 Steps: State H0/H1 > Choose alpha > Select test > Compute statistic > Find p > Decision > Conclude | '
+         'p<alpha: Reject H0 | Two-tailed vs one-tailed | '
+         'ttest_1samp(), ttest_ind(), ttest_rel()','15%'],
+        ['Two-Sample Testing',
+         'Independent t: ttest_ind(equal_var=True/False) | '
+         'Paired t: ttest_rel(before, after) | '
+         'Non-parametric: mannwhitneyu(), wilcoxon() | '
+         'Check variances: levene() before t-test','10%'],
+        ['One-Way ANOVA',
+         'F = MSB/MSW | SSB=between groups | SSW=within groups | '
+         'dfB=k-1, dfW=N-k | MSB=SSB/dfB, MSW=SSW/dfW | '
+         'f_oneway(g1,g2,g3) | Post-hoc: Tukey HSD','12%'],
+        ['Two-Way ANOVA',
+         'Tests Factor A, Factor B, AND Interaction AxB | '
+         '3 separate F-statistics | Interaction = effect of A depends on B | '
+         'ols formula: y ~ C(A) + C(B) + C(A):C(B) | sm.stats.anova_lm()','10%'],
+        ['Permutation Test',
+         'Non-parametric. No distribution assumptions. Shuffle labels 10000x. '
+         'p-value = fraction of permuted stats >= observed stat. '
+         'Use: np.random.permutation(pooled). Works with any test statistic.','8%'],
+        ['Chi-Square Test',
+         'chi2=Sum[(O-E)^2/E] | Goodness of fit: df=k-1, chisquare(obs,exp) | '
+         'Independence: df=(r-1)(c-1), chi2_contingency(table) | '
+         'Expected_ij=Row_i*Col_j/N | All E >= 5 required','11%'],
     ]
-    cheat_data = []
+    rows_data = []
     for i, row in enumerate(cheat):
         if i == 0:
-            cheat_data.append([Paragraph(f'<b>{c}</b>', S['body_bold']) for c in row])
+            rows_data.append([Paragraph(f'<b>{c}</b>', S('body_bold')) for c in row])
         else:
-            cheat_data.append([
-                Paragraph(f'<b>{row[0]}</b>', S['body_bold']),
-                Paragraph(row[1], S['body']),
-                Paragraph(f'<b>{row[2]}</b>', S['body_bold']),
-            ])
-    ct2 = Table(cheat_data, colWidths=[2.5*cm, 11.5*cm, 1*cm])
+            rows_data.append([Paragraph(f'<b>{row[0]}</b>', S('body_bold')),
+                               Paragraph(escape(str(row[1])), S('body')),
+                               Paragraph(f'<b>{row[2]}</b>', S('body_bold'))])
+    ct2 = Table(rows_data, colWidths=[3*cm, 11*cm, 1*cm])
     ct2.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), DARK_BLUE),
-        ('TEXTCOLOR', (0,0), (-1,0), WHITE),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [WHITE, LIGHT_BLUE]),
-        ('BOX', (0,0), (-1,-1), 1, ACCENT_BLUE),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#b0bec5')),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('BACKGROUND',(0,0),(-1,0),DARK_BLUE),('TEXTCOLOR',(0,0),(-1,0),WHITE),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[WHITE,LIGHT_BLUE]),
+        ('BOX',(0,0),(-1,-1),1,ACCENT_BLUE),
+        ('INNERGRID',(0,0),(-1,-1),0.5,colors.HexColor('#b0bec5')),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
     ]))
-    story.append(ct2)
-    story.append(vspace(16))
+    story.append(ct2); story.append(vs(14))
 
-    story.append(colored_box(
-        '🏆 TOP 5 MOST IMPORTANT TOPICS:\n'
-        '1st: Inheritance (12%) | 2nd: Magic Methods (10%) = Functions (10%) | '
-        '4th: Exception Handling (9%) = Class Attributes (9%)\n'
-        'Focus MAXIMUM study time on these five topics!',
+    story.append(cbox(
+        'CRITICAL CODE TO REMEMBER:\n'
+        'scipy.stats.ttest_1samp(data, popmean) | '
+        'stats.ttest_ind(g1, g2, equal_var=False) | '
+        'stats.ttest_rel(before, after) | '
+        'stats.f_oneway(g1, g2, g3) | '
+        'stats.chi2_contingency(table) | '
+        'stats.chisquare(observed, expected) | '
+        'stats.norm.cdf(x, mu, sigma) | '
+        'stats.t.interval(0.95, df, loc, scale) for CI | '
+        'np.random.permutation(data) for permutation test',
         YELLOW_BG, ORANGE, 'note'))
-    story.append(vspace(10))
-
+    story.append(vs(10))
     story.append(hr(DARK_BLUE, 2))
-    story.append(Paragraph('MODULE 1 — DATA ANALYTICS USING PYTHON (PCC-IT-601-A-2024) | Complete Exam Notes | B.Tech 6th Semester', S['tip']))
+    story.append(Paragraph(
+        'MODULE 3 — DATA ANALYTICS USING PYTHON (PCC-IT-601-A-2024) | '
+        'Statistics Complete Exam Notes | B.Tech 6th Semester', S('tip')))
 
     doc.build(story)
-    print("PDF generated successfully!")
+    print('Module 3 PDF generated successfully!')
 
-build_pdf()
+build()
