@@ -1,14 +1,2 @@
-def pyramid(n):
-    for i in range(n-1,-1,-1):
-        print(" "*i,end='')
-        print("/",end='')
-        if i == 0:
-            print("_"*((n-1)*2),end='')
-        else:
-            print(" "*((n-1-i)*2),end='')
-        print("\\")
-        
-    
-    
-
-pyramid(6)
+    if row[0] != 0 and all(elem == row[0] for elem in row):
+            return row[0]
