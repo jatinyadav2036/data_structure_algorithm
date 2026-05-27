@@ -1,3 +1,0 @@
-Hello Python!
-File Handling is easy.
-Appended line
