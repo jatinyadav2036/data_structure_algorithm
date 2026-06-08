@@ -1,1709 +1,1558 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
-from reportlab.lib.colors import HexColor, black, white
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, PageBreak
-)
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
-from reportlab.lib import colors
-
-# ── colour palette ──────────────────────────────────────────────
-SAFFRON      = HexColor("#FF6B00")
-DARK_SAFFRON = HexColor("#CC5500")
-GOLD         = HexColor("#FFD700")
-DARK_GOLD    = HexColor("#B8860B")
-DEEP_BLUE    = HexColor("#1A237E")
-LIGHT_BLUE   = HexColor("#E8EAF6")
-LIGHT_ORANGE = HexColor("#FFF3E0")
-LIGHT_GREEN  = HexColor("#E8F5E9")
-LIGHT_RED    = HexColor("#FFEBEE")
-LIGHT_PURPLE = HexColor("#F3E5F5")
-CREAM        = HexColor("#FFFDE7")
-DARK_GREEN   = HexColor("#1B5E20")
-MAROON       = HexColor("#880E4F")
-TEAL         = HexColor("#004D40")
-GRAY_BG      = HexColor("#F5F5F5")
-DARK_GRAY    = HexColor("#424242")
-INDIGO       = HexColor("#283593")
-CYAN_DARK    = HexColor("#006064")
-CYAN_LIGHT   = HexColor("#E0F7FA")
-PURPLE_DARK  = HexColor("#4A148C")
-PURPLE_LIGHT = HexColor("#EDE7F6")
-
-WIDTH, HEIGHT = A4
-
-def build_styles():
-    def ps(name, **kw):
-        return ParagraphStyle(name, **kw)
-    return {
-        "cover_title": ps("cover_title", fontName="Helvetica-Bold", fontSize=26,
-            textColor=white, alignment=TA_CENTER, spaceAfter=8, leading=32),
-        "cover_sub": ps("cover_sub", fontName="Helvetica-Bold", fontSize=13,
-            textColor=GOLD, alignment=TA_CENTER, spaceAfter=6),
-        "cover_info": ps("cover_info", fontName="Helvetica", fontSize=11,
-            textColor=white, alignment=TA_CENTER, spaceAfter=4),
-        "module_title": ps("module_title", fontName="Helvetica-Bold", fontSize=20,
-            textColor=white, alignment=TA_CENTER, spaceAfter=4, leading=26),
-        "topic_header": ps("topic_header", fontName="Helvetica-Bold", fontSize=13,
-            textColor=white, alignment=TA_LEFT, spaceAfter=2, leading=17),
-        "subtopic": ps("subtopic", fontName="Helvetica-Bold", fontSize=12,
-            textColor=DEEP_BLUE, alignment=TA_LEFT, spaceBefore=8, spaceAfter=4, leading=16),
-        "body": ps("body", fontName="Helvetica", fontSize=10.5,
-            textColor=DARK_GRAY, alignment=TA_JUSTIFY, spaceBefore=3, spaceAfter=3, leading=16),
-        "bullet": ps("bullet", fontName="Helvetica", fontSize=10.5,
-            textColor=DARK_GRAY, alignment=TA_LEFT,
-            leftIndent=16, firstLineIndent=-10, spaceBefore=2, spaceAfter=2, leading=15),
-        "bold_bullet": ps("bold_bullet", fontName="Helvetica-Bold", fontSize=10.5,
-            textColor=DARK_GRAY, alignment=TA_LEFT,
-            leftIndent=16, firstLineIndent=-10, spaceBefore=2, spaceAfter=2, leading=15),
-        "highlight_box": ps("highlight_box", fontName="Helvetica", fontSize=10.5,
-            textColor=DARK_GRAY, alignment=TA_JUSTIFY,
-            leftIndent=8, rightIndent=8, spaceBefore=2, spaceAfter=2, leading=15),
-        "verse": ps("verse", fontName="Helvetica-Oblique", fontSize=10,
-            textColor=TEAL, alignment=TA_CENTER, spaceBefore=2, spaceAfter=2, leading=14),
-        "exam_q": ps("exam_q", fontName="Helvetica-Bold", fontSize=10.5,
-            textColor=MAROON, alignment=TA_LEFT, spaceBefore=5, spaceAfter=2, leading=14),
-        "exam_a": ps("exam_a", fontName="Helvetica", fontSize=10,
-            textColor=DARK_GRAY, alignment=TA_JUSTIFY,
-            leftIndent=12, spaceBefore=2, spaceAfter=4, leading=14),
-        "section_label": ps("section_label", fontName="Helvetica-Bold", fontSize=11,
-            textColor=DEEP_BLUE, alignment=TA_LEFT, spaceBefore=6, spaceAfter=2),
-        "table_head": ps("table_head", fontName="Helvetica-Bold", fontSize=10,
-            textColor=white, alignment=TA_CENTER),
-        "table_cell": ps("table_cell", fontName="Helvetica", fontSize=9.5,
-            textColor=DARK_GRAY, alignment=TA_LEFT, leading=13),
-        "note": ps("note", fontName="Helvetica-Oblique", fontSize=9.5,
-            textColor=MAROON, alignment=TA_LEFT, spaceBefore=2, spaceAfter=2, leading=13),
-        "percent_badge": ps("percent_badge", fontName="Helvetica-Bold", fontSize=10,
-            textColor=DARK_GREEN, alignment=TA_CENTER),
-    }
-
-# ── helpers ─────────────────────────────────────────────────────
-
-def colored_box(items, bg=LIGHT_ORANGE, border=SAFFRON):
-    data = [[i] for i in items]
-    t = Table(data, colWidths=[16.5*cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,-1), bg),
-        ("BOX",           (0,0),(-1,-1), 1.2, border),
-        ("TOPPADDING",    (0,0),(-1,-1), 7),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 7),
-        ("LEFTPADDING",   (0,0),(-1,-1), 10),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 10),
-    ]))
-    return t
-
-def header_bar(text, styles, bg=SAFFRON):
-    data = [[Paragraph(text, styles["topic_header"])]]
-    t = Table(data, colWidths=[16.5*cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,-1), bg),
-        ("LEFTPADDING",   (0,0),(-1,-1), 12),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 12),
-        ("TOPPADDING",    (0,0),(-1,-1), 9),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 9),
-    ]))
-    return t
-
-def prob_badge(topic, pct, styles):
-    color = DARK_GREEN if pct >= 70 else (DARK_SAFFRON if pct >= 40 else MAROON)
-    label = "VERY HIGH" if pct >= 85 else ("HIGH" if pct >= 70 else ("MEDIUM" if pct >= 40 else "LOW"))
-    emoji = "🔥" if pct >= 85 else ("⚡" if pct >= 70 else "📌")
-    data = [[
-        Paragraph(f"<b>{topic}</b>", styles["body"]),
-        Paragraph(f"<b>{emoji} {pct}% — {label}</b>",
-                  ParagraphStyle("pb", fontName="Helvetica-Bold", fontSize=10,
-                                 textColor=color, alignment=TA_CENTER)),
-    ]]
-    t = Table(data, colWidths=[12*cm, 4.5*cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,-1), GRAY_BG),
-        ("BOX",           (0,0),(-1,-1), 0.8, HexColor("#BDBDBD")),
-        ("LINEAFTER",     (0,0),(0,-1),  0.8, HexColor("#BDBDBD")),
-        ("TOPPADDING",    (0,0),(-1,-1), 5),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 5),
-        ("LEFTPADDING",   (0,0),(-1,-1), 8),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 8),
-        ("VALIGN",        (0,0),(-1,-1), "MIDDLE"),
-    ]))
-    return t
-
-def two_col_box(left_items, right_items, left_bg, right_bg, left_border, right_border):
-    """Two side-by-side colored boxes."""
-    def make_inner(items, bg, border):
-        inner_data = [[i] for i in items]
-        t = Table(inner_data, colWidths=[7.8*cm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0,0),(-1,-1), bg),
-            ("BOX",           (0,0),(-1,-1), 1, border),
-            ("TOPPADDING",    (0,0),(-1,-1), 7),
-            ("BOTTOMPADDING", (0,0),(-1,-1), 7),
-            ("LEFTPADDING",   (0,0),(-1,-1), 8),
-            ("RIGHTPADDING",  (0,0),(-1,-1), 8),
-        ]))
-        return t
-    row = [[make_inner(left_items, left_bg, left_border),
-            make_inner(right_items, right_bg, right_border)]]
-    outer = Table(row, colWidths=[8.1*cm, 8.1*cm], hAlign="LEFT")
-    outer.setStyle(TableStyle([
-        ("VALIGN",       (0,0),(-1,-1), "TOP"),
-        ("LEFTPADDING",  (0,0),(-1,-1), 0),
-        ("RIGHTPADDING", (0,0),(-1,-1), 3),
-        ("TOPPADDING",   (0,0),(-1,-1), 0),
-        ("BOTTOMPADDING",(0,0),(-1,-1), 0),
-    ]))
-    return outer
-
-def exam_box_split(q_text, marks, *answer_boxes_data, styles=None):
-    """Question label + multiple answer boxes (avoids overflow)."""
-    S = styles
-    result = []
-    result.append(colored_box([
-        Paragraph(f"Q: {q_text}  <font color='#880E4F'>[{marks}]</font>", S["exam_q"]),
-    ], GRAY_BG, INDIGO))
-    result.append(Spacer(1, 3))
-    for (label, text, bg, border) in answer_boxes_data:
-        result.append(colored_box([
-            Paragraph(f"<b>{label}</b>", S["section_label"]),
-            Paragraph(text, S["exam_a"]),
-        ], bg, border))
-        result.append(Spacer(1, 3))
-    return result
-
-def divider(color=SAFFRON):
-    return HRFlowable(width="100%", thickness=1.5, color=color, spaceAfter=6, spaceBefore=6)
-
-# ════════════════════════════════════════════════════════════════
-# MAIN CONTENT
-# ════════════════════════════════════════════════════════════════
-
-def build_content(styles):
-    S = styles
-    story = []
-
-    # ── COVER ────────────────────────────────────────────────────
-    story.append(Spacer(1, 1*cm))
-    cover_rows = [
-        [Paragraph("📖  MESSAGE OF BHAGAVAD GITA", S["cover_title"])],
-        [Paragraph("CODE: AC-02-23  |  B.Tech / M.Tech  |  Theory Exam: 75 Marks", S["cover_sub"])],
-        [Paragraph("MODULE 2  —  COMPREHENSIVE EXAM NOTES", S["cover_sub"])],
-        [Paragraph("Unit II :  Karma Yoga  ·  Living in the Present  ·  Nishkama Karma", S["cover_info"])],
-        [Paragraph("Swadharma  ·  Dhyana Yoga  ·  Quantity/Quality/Direction of Thoughts", S["cover_info"])],
-        [Paragraph("Reaching Inner Silence", S["cover_info"])],
-        [Paragraph("✦  Deep Explanations  ✦  Exam % Probability  ✦  All Q&A  ✦  Concept Maps  ✦", S["cover_info"])],
-    ]
-    ct = Table(cover_rows, colWidths=[16.5*cm])
-    ct.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,-1), DARK_SAFFRON),
-        ("TOPPADDING",    (0,0),(-1,-1), 12),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 12),
-        ("LEFTPADDING",   (0,0),(-1,-1), 18),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 18),
-    ]))
-    story.append(ct)
-    story.append(Spacer(1, 0.5*cm))
-
-    # exam structure
-    estruct = [
-        [Paragraph("<b>Marks</b>",S["table_head"]), Paragraph("<b>Type</b>",S["table_head"]),
-         Paragraph("<b>Word Limit</b>",S["table_head"]), Paragraph("<b>Strategy</b>",S["table_head"])],
-        [Paragraph("1.5",S["table_cell"]), Paragraph("Short Answer",S["table_cell"]),
-         Paragraph("~50 words",S["table_cell"]), Paragraph("Define + 1 crisp key point",S["table_cell"])],
-        [Paragraph("5",S["table_cell"]), Paragraph("Short Essay",S["table_cell"]),
-         Paragraph("300-500 words",S["table_cell"]), Paragraph("Intro + 3-4 main points + conclusion",S["table_cell"])],
-        [Paragraph("10",S["table_cell"]), Paragraph("Essay",S["table_cell"]),
-         Paragraph("500-700 words",S["table_cell"]), Paragraph("Detailed analysis + examples + verses",S["table_cell"])],
-        [Paragraph("15",S["table_cell"]), Paragraph("Long Essay",S["table_cell"]),
-         Paragraph("700-1000 words",S["table_cell"]), Paragraph("Full depth + modern links + conclusion",S["table_cell"])],
-    ]
-    et = Table(estruct, colWidths=[2.5*cm,3.5*cm,3.5*cm,7*cm])
-    et.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),DEEP_BLUE),
-        ("BACKGROUND",(0,1),(-1,1),LIGHT_BLUE),
-        ("BACKGROUND",(0,2),(-1,2),CREAM),
-        ("BACKGROUND",(0,3),(-1,3),LIGHT_BLUE),
-        ("BACKGROUND",(0,4),(-1,4),CREAM),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#90A4AE")),
-        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
-        ("LEFTPADDING",(0,0),(-1,-1),7),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(et)
-    story.append(Spacer(1, 0.4*cm))
-
-    # ── PROBABILITY TABLE ────────────────────────────────────────
-    story.append(divider())
-    story.append(Paragraph("🎯  TOPIC-WISE EXAM PROBABILITY — MODULE 2", S["subtopic"]))
-    probs = [
-        ("Karma Yoga — Definition & Yoga of Action", 90),
-        ("Living in the Present (Present-moment awareness)", 80),
-        ("Nishkama Karma — Dedicated Action without Anxiety over Results", 95),
-        ("Concept of Swadharma (One's own duty)", 90),
-        ("Comparison: Karma Yoga vs Modern Mindfulness", 75),
-        ("Dhyana Yoga — Definition & Tuning the Mind", 85),
-        ("Quantity, Quality and Direction of Thoughts", 90),
-        ("Reaching Inner Silence (Meditation process)", 85),
-        ("Role of Intention in Karma Yoga", 70),
-        ("Body-Mind-Consciousness Distinction (Dhyana Yoga context)", 75),
-    ]
-    for topic, pct in probs:
-        story.append(prob_badge(topic, pct, S))
-        story.append(Spacer(1, 2))
-
-    # ════════════════════════════════════════════════════════════
-    # KARMA YOGA — SECTION 1
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  KARMA YOGA (Chapter 3 & related) — YOGA OF ACTION", S, DARK_SAFFRON))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  What is Karma Yoga?", S["subtopic"]))
-    story.append(Paragraph(
-        "The word <b>Karma</b> comes from Sanskrit root 'kri' meaning 'to do' or 'to act.' "
-        "The word <b>Yoga</b> means union or discipline. So <b>Karma Yoga</b> literally means "
-        "'the discipline of action' or 'the yoga of work.' It is the path to spiritual growth and "
-        "liberation through selfless, dedicated action — performing one's duties excellently, "
-        "without craving for rewards or fear of failure.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY VERSE — Bhagavad Gita 2.47 (Most Important Verse of Karma Yoga):", S["section_label"]),
-        Paragraph(
-            "karmany evadhikaras te ma phalesu kadacana<br/>"
-            "ma karma-phala-hetur bhur ma te sango stv akarmani",
-            S["verse"]),
-        Paragraph(
-            "<b>Translation:</b> 'You have the right to perform your prescribed duties, but you are "
-            "not entitled to the fruits of your actions. Never consider yourself the cause of the "
-            "results of your activities, and never be attached to not doing your duty.'",
-            S["highlight_box"]),
-        Paragraph(
-            "This single verse contains the entire philosophy of Karma Yoga. It is arguably the most "
-            "quoted verse of the Bhagavad Gita in the entire world.",
-            S["note"]),
-    ], LIGHT_ORANGE, SAFFRON))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("📌  Three Pillars of Karma Yoga", S["subtopic"]))
-    pillars = [
-        ("PILLAR 1: Do Your Duty (Kartavya Karma)", LIGHT_BLUE, DEEP_BLUE,
-         "You have the RIGHT and RESPONSIBILITY to act — to perform your prescribed duty "
-         "(svadharma). Inaction is NOT an option in the Gita. Even renouncing action is itself "
-         "an action. No one can remain inactive even for a moment — nature (prakriti) forces "
-         "everyone to act through the three gunas. So the question is not WHETHER to act, "
-         "but HOW to act. The Gita says: Act! But act wisely."),
-        ("PILLAR 2: No Claim on Fruits (Ma Phalesu Kadachana)", LIGHT_GREEN, DARK_GREEN,
-         "You have NO RIGHT over the fruits (results) of your actions. Why? Because results "
-         "depend on countless factors beyond your control: time, place, other people's actions, "
-         "God's will, your past karma. You control only your effort — not the outcome. "
-         "When you work without attachment to results: (a) you give 100% to the process, "
-         "(b) you are not paralyzed by fear of failure, (c) you are not corrupted by greed "
-         "for rewards. This is the secret of peak performance AND inner peace simultaneously."),
-        ("PILLAR 3: No Attachment to Inaction (Ma Te Sango Stv Akarmani)", LIGHT_ORANGE, SAFFRON,
-         "The third instruction is often missed: do NOT use 'detachment from results' as an "
-         "excuse for laziness or inaction! The Gita is not saying 'don't care about anything.' "
-         "It is saying: care deeply about the quality of your action, but don't be anxious "
-         "about results. Many people misread Karma Yoga as: 'Just do your thing, doesn't "
-         "matter what happens.' NO — it means: act with full dedication and excellence, "
-         "but without psychological attachment to outcomes."),
-    ]
-    for title, bg, border, content in pillars:
-        story.append(colored_box([
-            Paragraph(f"<b>⚡ {title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], bg, border))
-        story.append(Spacer(1, 4))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("🌟  Why Karma Yoga is the Path of Liberation", S["subtopic"]))
-    story.append(Paragraph(
-        "The Gita teaches that every action creates karma (cause-effect impressions) that binds "
-        "the soul to the cycle of rebirth (samsara). How do we act without creating binding karma? "
-        "By offering all actions to God/the Universe (Ishvara Arpana Buddhi). When you work as an "
-        "instrument of God — doing your best without ego-investment in results — actions do not "
-        "bind. This is called 'Yoga' — the action that liberates rather than binds.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("🗺️  CONCEPT MAP — HOW KARMA YOGA WORKS:", S["section_label"]),
-        Paragraph("ACTION + EGO + CRAVING FOR RESULTS = Binding Karma (more bondage, suffering)", S["bold_bullet"]),
-        Paragraph("ACTION + DEDICATION + DETACHMENT FROM RESULTS = Karma Yoga (liberation)", S["bold_bullet"]),
-        Paragraph("", S["body"]),
-        Paragraph("FORMULA: Right Action (Svadharma) + Right Intention (Ishvara Arpana) + "
-                  "Right Attitude (No Result Anxiety) = KARMA YOGA = Inner Peace + Outer Excellence", S["note"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔬  Modern Parallels of Karma Yoga", S["subtopic"]))
-    story.append(Paragraph(
-        "Karma Yoga is not just ancient philosophy — it maps perfectly onto modern psychology "
-        "and peak performance science:", S["body"]))
-    modern_parallels = [
-        ("Mihaly Csikszentmihalyi's 'Flow State'",
-         "The psychologist described 'flow' as a state of complete absorption in an activity, "
-         "where ego disappears and performance peaks. This IS Karma Yoga — action without "
-         "ego-self-consciousness, fully engaged in the present moment."),
-        ("Sports Psychology — 'Process Focus'",
-         "Top athletes (Sachin Tendulkar, Virat Kohli) are coached to focus on the process "
-         "(technique, shot selection) not the result (winning, records). This is exactly "
-         "BG 2.47: 'Your right is to work only, not to its fruits.'"),
-        ("Stoic Philosophy (Marcus Aurelius)",
-         "'You have power over your mind, not outside events. Realize this and you will find "
-         "strength.' The Stoics independently arrived at the same insight as Karma Yoga: "
-         "distinguish what is in your control (action) from what is not (results)."),
-        ("Mindfulness-Based Stress Reduction (MBSR)",
-         "Dr. Jon Kabat-Zinn's MBSR teaches doing tasks with full attention and without "
-         "judgment about outcomes — a secular, clinical version of Nishkama Karma."),
-    ]
-    for pt, pc in modern_parallels:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {pt}:</b>", S["section_label"]),
-            Paragraph(pc, S["highlight_box"]),
-        ], CYAN_LIGHT, CYAN_DARK))
-        story.append(Spacer(1, 3))
-
-    # ════════════════════════════════════════════════════════════
-    # TOPIC 2 — LIVING IN THE PRESENT
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  TOPIC 2: LIVING IN THE PRESENT (Present-Moment Awareness)", S, INDIGO))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  The Gita's Teaching on the Present Moment", S["subtopic"]))
-    story.append(Paragraph(
-        "The Bhagavad Gita does not use the modern term 'mindfulness,' but its entire teaching "
-        "on Karma Yoga is grounded in present-moment awareness. The Gita teaches that the mind "
-        "has three typical movement patterns — and liberation comes from transcending all three:", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    mind_movements = [
-        ("The Past-Dwelling Mind", LIGHT_RED, MAROON,
-         "The mind constantly replays past events — regrets, grudges, nostalgia, shame. "
-         "'If only I had done X differently...' This is what tormented Arjuna: he was "
-         "mentally replaying his relationships and imagining the grief of past bonds being broken. "
-         "The Gita calls this 'shoka' (grief rooted in past-attachment). It achieves nothing "
-         "and destroys the present."),
-        ("The Future-Worrying Mind", LIGHT_ORANGE, DARK_SAFFRON,
-         "The mind projects into future fears and anxieties. 'What if I fail? What if they "
-         "die? What if I lose?' Arjuna worried about future consequences of battle. "
-         "The Gita calls this 'chinta' (anxiety about future). BG 2.47 directly addresses "
-         "this: your right is to action NOW, not to results in the future."),
-        ("The Present-Engaged Mind", LIGHT_GREEN, DARK_GREEN,
-         "The liberated mind is fully present in THIS action, THIS moment, with full "
-         "awareness and skill. This is what Krishna calls the 'Yoga' state. When Arjuna "
-         "finally accepts his duty and picks up his bow, he is present. The Gita's entire "
-         "teaching moves Arjuna from past-grief and future-anxiety to present-action."),
-    ]
-    for title, bg, border, content in mind_movements:
-        story.append(colored_box([
-            Paragraph(f"<b>{title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], bg, border))
-        story.append(Spacer(1, 4))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("🧠  Why 'Living in the Present' is Central to Karma Yoga", S["subtopic"]))
-
-    present_points = [
-        ("Only the Present Moment Can Be Acted In",
-         "The past is gone — no action is possible in the past. The future hasn't come — "
-         "you cannot act in a future that doesn't exist yet. The ONLY moment where "
-         "action is possible is NOW. Therefore, Karma Yoga — yoga of action — is by "
-         "definition yoga of the present moment. Krishna's instruction to 'perform your "
-         "duty' is always an instruction to act RIGHT NOW."),
-        ("Past and Future Are Mental Constructs",
-         "The Gita teaches (through Sankhya philosophy) that only the soul (Atman) "
-         "and Brahman are truly real — permanent and unchanging. The past and future "
-         "exist only as thought-forms in the mind. When we are trapped in past grief "
-         "or future anxiety, we are living in mental fictions, not reality. "
-         "Present-moment awareness is therefore the most truthful way of living."),
-        ("Anxiety Over Results = Future-Mind = Obstacle to Karma Yoga",
-         "Krishna's instruction 'ma phalesu kadachana' (no attachment to fruits) is "
-         "fundamentally an instruction to stay present. When you're anxious about "
-         "results, your mind is in the future. When you're dwelling on past failures, "
-         "your mind is in the past. Karma Yoga means: bring the mind back to THIS "
-         "action, THIS moment. Full presence = full performance = karma yoga."),
-        ("The Present Moment is Where God Meets You",
-         "The Gita teaches that the Divine (Brahman/Krishna) is eternally present — "
-         "not in the past or future, but in the eternal NOW. When Arjuna is fully "
-         "present on the battlefield, he can hear Krishna's voice. When we are fully "
-         "present in our actions, we can experience the divine guidance that is always "
-         "available. Meditation and karma yoga both develop this capacity."),
-    ]
-    for pt, pc in present_points:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {pt}</b>", S["section_label"]),
-            Paragraph(pc, S["highlight_box"]),
-        ], CREAM, DARK_GOLD))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(colored_box([
-        Paragraph("💡  LIVING IN THE PRESENT — PRACTICAL APPLICATION:", S["section_label"]),
-        Paragraph("Gita's Present-Moment Practice in Daily Life:", S["bold_bullet"]),
-        Paragraph("• While studying: 100% attention on THIS page, THIS concept — not exam results", S["bullet"]),
-        Paragraph("• While working: full focus on THIS task — not on appraisal, promotion, or office politics", S["bullet"]),
-        Paragraph("• While talking: LISTEN completely to THIS person — not planning your reply", S["bullet"]),
-        Paragraph("• While eating: taste THIS food — not scrolling phone or worrying about calories", S["bullet"]),
-        Paragraph("• While exercising: feel THIS movement — not dreading the next rep", S["bullet"]),
-        Paragraph("RESULT: Every activity becomes meditation. Every moment becomes yoga.", S["note"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-
-    # ════════════════════════════════════════════════════════════
-    # TOPIC 3 — NISHKAMA KARMA
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  TOPIC 3: NISHKAMA KARMA — DEDICATED ACTION WITHOUT ANXIETY OVER RESULTS", S, DARK_GREEN))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  Understanding Nishkama Karma", S["subtopic"]))
-    story.append(Paragraph(
-        "<b>Nishkama</b> = Nish (without) + Kama (desire/craving). "
-        "<b>Nishkama Karma</b> = Action without selfish desire for results. "
-        "This is the practical heart of Karma Yoga. It does NOT mean being lazy, "
-        "indifferent, or robotic. It means performing every action with complete "
-        "dedication and excellence — while being psychologically free from anxiety "
-        "about whether the result will match your expectation.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY VERSE — Bhagavad Gita 4.18:", S["section_label"]),
-        Paragraph(
-            "karmany akarma yah pasyed akarmani ca karma yah<br/>"
-            "sa buddhiman manusyesu sa yuktah krtsna-karma-krit",
-            S["verse"]),
-        Paragraph(
-            "<b>Translation:</b> 'One who sees inaction in action, and action in inaction, "
-            "is intelligent among men, and is in the transcendental position, although "
-            "engaged in all sorts of activities.' — This verse points to the secret of "
-            "Karma Yoga: externally active, internally still. Working without working.",
-            S["highlight_box"]),
-    ], LIGHT_ORANGE, SAFFRON))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🎯  What 'No Anxiety Over Results' Actually Means", S["subtopic"]))
-    story.append(Paragraph("Let's demolish common misconceptions:", S["body"]))
-    story.append(Spacer(1, 0.1*cm))
-
-    miscon_data = [
-        [Paragraph("<b>WRONG Understanding</b>", S["table_head"]),
-         Paragraph("<b>RIGHT Understanding (Gita)</b>", S["table_head"])],
-        [Paragraph("Don't care about results at all", S["table_cell"]),
-         Paragraph("Care 100% about the QUALITY of your action; just don't obsess over outcomes", S["table_cell"])],
-        [Paragraph("Do mediocre work — 'results don't matter'", S["table_cell"]),
-         Paragraph("Do EXCELLENT work — that IS the offering. Poor work = not Karma Yoga", S["table_cell"])],
-        [Paragraph("Be passive and wait for things to happen", S["table_cell"]),
-         Paragraph("Be proactive, decisive, courageous — full engagement, no laziness", S["table_cell"])],
-        [Paragraph("Have no goals or ambitions", S["table_cell"]),
-         Paragraph("Have goals — but hold them lightly. Work toward them without being destroyed if they shift", S["table_cell"])],
-        [Paragraph("Don't plan for the future", S["table_cell"]),
-         Paragraph("Plan thoroughly and act in the present — but don't be anxious about future outcomes", S["table_cell"])],
-    ]
-    mt = Table(miscon_data, colWidths=[8*cm, 8.5*cm])
-    mt.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),MAROON),
-        ("BACKGROUND",(0,1),(-1,1),LIGHT_RED),
-        ("BACKGROUND",(0,2),(-1,2),LIGHT_GREEN),
-        ("BACKGROUND",(0,3),(-1,3),LIGHT_RED),
-        ("BACKGROUND",(0,4),(-1,4),LIGHT_GREEN),
-        ("BACKGROUND",(0,5),(-1,5),LIGHT_RED),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#BDBDBD")),
-        ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
-        ("LEFTPADDING",(0,0),(-1,-1),7),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(mt)
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("⚙️  The Psychology of Nishkama Karma", S["subtopic"]))
-    psych_points = [
-        ("Why Result-Attachment Destroys Performance",
-         "When you desperately NEED a particular result, the fear of not getting it "
-         "creates tension, anxiety, and mental noise. This noise interferes with clear "
-         "thinking and skilled action. Athletes call this 'choking under pressure.' "
-         "Nishkama Karma removes this noise. When results don't define your worth, "
-         "you perform with freedom, creativity, and full skill — paradoxically achieving "
-         "BETTER results through non-attachment."),
-        ("The Motivation Question: Why Act if Not for Results?",
-         "This is the most common objection. The Gita's answer: act because it is your "
-         "DUTY (dharma), because it is the RIGHT thing to do, because you are an "
-         "instrument of the divine purpose. This is called 'Ishvara Arpana Buddhi' "
-         "(offering your actions to God). When your motivation shifts from personal "
-         "gain to dharmic service, you tap into an infinite reservoir of energy, "
-         "enthusiasm, and creativity that ego-driven motivation cannot match."),
-        ("The Role of Intention (Sankalpa)",
-         "BG teaches that the QUALITY of intention behind an action determines its "
-         "spiritual impact. The same external action — giving money, for example — "
-         "can be: selfish (for tax benefit), egotistic (for social recognition), "
-         "or Nishkama (pure service without expectation). Only the last is Karma Yoga. "
-         "Intention is invisible to observers but fully known to the self and to God."),
-        ("Dedication Without Anxiety — The Surgeon Analogy",
-         "A great surgeon must be fully dedicated to saving the patient's life, "
-         "using every skill with complete focus — yet cannot be emotionally overwhelmed "
-         "or paralyzed by the fear that the patient might die. Too much emotional "
-         "attachment impairs surgical precision. This is Nishkama Karma: "
-         "100% dedication + 0% psychological anxiety = peak performance + inner peace."),
-    ]
-    for pt, pc in psych_points:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {pt}</b>", S["section_label"]),
-            Paragraph(pc, S["highlight_box"]),
-        ], LIGHT_BLUE, DEEP_BLUE))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(colored_box([
-        Paragraph("KEY VERSE — BG 3.19 (Ultimate instruction on Nishkama Karma):", S["section_label"]),
-        Paragraph(
-            "tasmad asaktah satatam karyam karma samacara<br/>"
-            "asakto hy acaran karma param apnoti purusah",
-            S["verse"]),
-        Paragraph(
-            "<b>Translation:</b> 'Therefore, without attachment, perform always the work "
-            "that has to be done; for a man performing action without attachment attains "
-            "the Supreme.' — Detachment from results is not weakness — it is the "
-            "secret to both material excellence and spiritual liberation.",
-            S["highlight_box"]),
-    ], CREAM, DARK_GOLD))
-
-    # ════════════════════════════════════════════════════════════
-    # TOPIC 4 — SWADHARMA
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  TOPIC 4: CONCEPT OF SWADHARMA — ONE'S OWN DUTY", S, TEAL))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  What is Swadharma?", S["subtopic"]))
-    story.append(Paragraph(
-        "<b>Swadharma</b> = Swa (own) + Dharma (duty, righteousness, role). "
-        "It literally means 'one's own duty' or 'one's own nature-based role.' "
-        "The concept of Swadharma is one of the most practical and important teachings "
-        "of the Bhagavad Gita — it tells each person WHAT they should be doing with their life "
-        "and HOW they should be doing it.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY VERSE — Bhagavad Gita 3.35 (The Gold Standard of Swadharma):", S["section_label"]),
-        Paragraph(
-            "sreyan sva-dharmo vigunah para-dharmat sv-anusthitat<br/>"
-            "sva-dharme nidhanam sreyah para-dharmo bhayavahah",
-            S["verse"]),
-        Paragraph(
-            "<b>Translation:</b> 'It is far better to perform one's natural prescribed duty, "
-            "though tinged with faults, than to perform the duty of another, even though "
-            "perfectly. In fact, it is preferable to die in the discharge of one's duty, "
-            "than to follow the path of another, which is full of danger.'",
-            S["highlight_box"]),
-        Paragraph(
-            "This is one of the most quoted and debated verses of the Gita — deeply practical "
-            "for career, life choices, and self-discovery.",
-            S["note"]),
-    ], LIGHT_ORANGE, SAFFRON))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("📋  Dimensions of Swadharma", S["subtopic"]))
-    swadharma_dims = [
-        ("1. Varna-based Swadharma (Role by Nature/Profession)",
-         "The Gita recognizes four types of human temperament/function: "
-         "Brahmin (intellectual/spiritual), Kshatriya (warrior/leader/protector), "
-         "Vaishya (trader/entrepreneur), Shudra (craftsman/service). "
-         "These are based on GUNA (inner quality) and KARMA (aptitude/action), "
-         "NOT by birth (BG 4.13). For Arjuna — a Kshatriya — fighting a righteous "
-         "war IS his Swadharma. Refusing to fight out of emotional attachment "
-         "is abandoning his Swadharma, which the Gita calls a greater sin."),
-        ("2. Ashrama-based Swadharma (Duty by Stage of Life)",
-         "Duties differ across the four stages of life: Brahmacharya (student — duty: learning), "
-         "Grihastha (householder — duty: family & work), Vanaprastha (retirement — duty: service & reflection), "
-         "Sannyasa (renunciation — duty: spiritual practice). "
-         "The Gita says: fulfilling the duties of your current stage IS your spiritual practice."),
-        ("3. Situational Swadharma (Role in a Given Situation)",
-         "Beyond profession and age, Swadharma is also situational: as a son, your duty is "
-         "one thing; as a citizen, another; as an employee, another; as a parent, yet another. "
-         "The Gita teaches that each role carries specific duties — and fulfilling them "
-         "with integrity (without craving or aversion) IS Karma Yoga."),
-        ("4. Inner Nature Swadharma (Following Your True Calling)",
-         "Most deeply, Swadharma means acting in alignment with your innate nature "
-         "(svabhava). When you do what you are naturally gifted for and genuinely called "
-         "to do, work becomes effortless, joyful, and excellent. Forcing yourself to live "
-         "someone else's life (paradharma) creates inner conflict, mediocrity, and suffering. "
-         "The Gita says this is 'bhayavahah' — full of danger."),
-    ]
-    for title, content in swadharma_dims:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], LIGHT_PURPLE, PURPLE_DARK))
-        story.append(Spacer(1, 4))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("🆚  Swadharma vs Paradharma — The Critical Distinction", S["subtopic"]))
-    story.append(Spacer(1, 0.1*cm))
-    compare_data = [
-        [Paragraph("<b>SWADHARMA (Own Duty)</b>",S["table_head"]),
-         Paragraph("<b>PARADHARMA (Others' Duty)</b>",S["table_head"])],
-        [Paragraph("Aligned with your nature and calling",S["table_cell"]),
-         Paragraph("Forced, artificial, borrowed identity",S["table_cell"])],
-        [Paragraph("May seem imperfect but is genuinely yours",S["table_cell"]),
-         Paragraph("May appear perfect but lacks authenticity",S["table_cell"])],
-        [Paragraph("Produces inner peace and integrity",S["table_cell"]),
-         Paragraph("Produces inner conflict and exhaustion",S["table_cell"])],
-        [Paragraph("Even dying in it is better (BG 3.35)",S["table_cell"]),
-         Paragraph("Even succeeding in it is dangerous (bhayavahah)",S["table_cell"])],
-        [Paragraph("Example: Einstein doing physics (his true calling)",S["table_cell"]),
-         Paragraph("Example: Einstein forced to be a soldier",S["table_cell"])],
-        [Paragraph("Example: Arjuna fighting the righteous war",S["table_cell"]),
-         Paragraph("Example: Arjuna becoming a monk to avoid battle",S["table_cell"])],
-    ]
-    ct = Table(compare_data, colWidths=[8.25*cm, 8.25*cm])
-    ct.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),TEAL),
-        ("BACKGROUND",(0,1),(-1,1),LIGHT_GREEN),
-        ("BACKGROUND",(0,2),(-1,2),LIGHT_RED),
-        ("BACKGROUND",(0,3),(-1,3),LIGHT_GREEN),
-        ("BACKGROUND",(0,4),(-1,4),LIGHT_RED),
-        ("BACKGROUND",(0,5),(-1,5),LIGHT_GREEN),
-        ("BACKGROUND",(0,6),(-1,6),LIGHT_RED),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#BDBDBD")),
-        ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
-        ("LEFTPADDING",(0,0),(-1,-1),7),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(ct)
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(colored_box([
-        Paragraph("🌍  Swadharma in Modern Life:", S["section_label"]),
-        Paragraph("• A doctor's Swadharma = heal patients with full skill and compassion", S["bullet"]),
-        Paragraph("• A teacher's Swadharma = educate with patience and inspiration", S["bullet"]),
-        Paragraph("• A soldier's Swadharma = protect the nation with courage and discipline", S["bullet"]),
-        Paragraph("• A parent's Swadharma = nurture children with love and wisdom", S["bullet"]),
-        Paragraph("• An engineer's Swadharma = design safe, excellent, honest solutions", S["bullet"]),
-        Paragraph("KEY INSIGHT: Swadharma is not about what you WANT to do — it is about "
-                  "what you are CALLED to do by your nature, situation, and role. When you "
-                  "align these, Karma Yoga flows naturally.", S["note"]),
-    ], CREAM, DARK_GOLD))
-
-    # ════════════════════════════════════════════════════════════
-    # KARMA YOGA Q&A
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📝  EXAM QUESTIONS — KARMA YOGA (All Mark Levels)", S, DEEP_BLUE))
-    story.append(Spacer(1, 0.3*cm))
-
-    # 1.5 mark questions
-    short_qas = [
-        ("What is Karma Yoga?",
-         "Karma Yoga is the yoga of selfless action — performing one's prescribed duty with full "
-         "dedication but without attachment to results. BG 2.47 is its cornerstone: 'You have the "
-         "right to work, but never to the fruits of work.' It is the path of liberation through "
-         "righteous, ego-free action."),
-        ("What does 'Living in the Present' mean?",
-         "Living in the present means performing actions with full awareness and engagement in the "
-         "current moment — without being trapped in past regrets or future anxieties. In Karma Yoga, "
-         "the present is the only space where action is possible. Full presence = full performance."),
-        ("What is the meaning of Swadharma according to the Gita?",
-         "Swadharma means one's own duty — the specific responsibilities arising from one's "
-         "nature, profession, stage of life, and situation. The Gita teaches: 'Better to perform "
-         "one's own duty imperfectly than another's perfectly.' Authentic alignment with one's "
-         "calling is essential for inner peace and spiritual growth."),
-        ("What is the role of intention in Karma Yoga?",
-         "In Karma Yoga, INTENTION (sankalpa) determines the spiritual quality of action. The same "
-         "external action can be selfish (sakama karma) or selfless (nishkama karma) depending on "
-         "motive. Action done for personal gain creates binding karma; action offered to God/dharma "
-         "without personal craving is liberating Karma Yoga."),
-    ]
-    for q, a in short_qas:
-        story.append(colored_box([
-            Paragraph(f"<b>Q: {q} [1.5 marks]</b>", S["exam_q"]),
-            Paragraph(a, S["exam_a"]),
-        ], GRAY_BG, HexColor("#BDBDBD")))
-        story.append(Spacer(1, 4))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(divider(DARK_GREEN))
-
-    # 5 mark
-    story.append(Paragraph("5-Mark Questions:", S["subtopic"]))
-    story.append(colored_box([
-        Paragraph("Q: Define Karma Yoga and explain how it teaches the principle of action without attachment to results. [5 marks]", S["exam_q"]),
-        Paragraph(
-            "<b>Introduction:</b> Karma Yoga, taught primarily in Chapters 3 and 4 of the Bhagavad Gita, "
-            "is the yoga of selfless, dedicated action. It is one of the three main paths to liberation "
-            "alongside Jnana Yoga (knowledge) and Bhakti Yoga (devotion).<br/><br/>"
-            "<b>Definition:</b> Karma Yoga is the discipline of performing one's prescribed duty (svadharma) "
-            "with complete dedication and skill, without craving for personal rewards or fear of failure. "
-            "The practitioner acts, but dedicates the fruits of action to God or to dharma, remaining "
-            "internally free from the outcome.<br/><br/>"
-            "<b>Core Principle — BG 2.47:</b> 'You have a right to perform your prescribed duties, "
-            "but you are not entitled to the fruits of your actions.' This verse establishes the "
-            "fundamental distinction: you control the ACTION (your effort, skill, dedication), "
-            "but the RESULT depends on many factors beyond you (time, others, God's will, past karma). "
-            "Attaching your happiness to results is therefore both irrational and spiritually binding.<br/><br/>"
-            "<b>Why Detachment Enhances Performance:</b> Paradoxically, when you release result-anxiety, "
-            "performance improves. Athletes in 'flow state,' surgeons in crisis, artists in creative "
-            "immersion — all describe a state of pure engagement where self-consciousness dissolves and "
-            "excellence emerges naturally. This IS Karma Yoga.<br/><br/>"
-            "<b>Three Instructions (BG 2.47):</b> (1) Perform your duty, (2) No claim on results, "
-            "(3) Don't use non-attachment as excuse for inaction — all three must be practiced together.<br/><br/>"
-            "<b>Conclusion:</b> Karma Yoga is revolutionary: it offers both peak performance AND inner "
-            "peace simultaneously. By working without ego-attachment, every action becomes a spiritual "
-            "practice and a step toward liberation.",
-            S["exam_a"]),
-    ], LIGHT_BLUE, DEEP_BLUE))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(colored_box([
-        Paragraph("Q: Compare Karma Yoga vs. Modern Mindfulness. [5 marks]", S["exam_q"]),
-        Paragraph(
-            "<b>Introduction:</b> Though separated by millennia and cultural contexts, Karma Yoga "
-            "(Bhagavad Gita, ~3000 BCE) and Modern Mindfulness (Jon Kabat-Zinn, 1979 CE) share "
-            "profound philosophical parallels — and important distinctions.<br/><br/>"
-            "<b>Similarities:</b><br/>"
-            "1. PRESENT-MOMENT FOCUS: Both teach bringing full attention to the present action, "
-            "not scattered between past and future.<br/>"
-            "2. NON-ATTACHMENT: Both cultivate non-grasping relationship with outcomes — "
-            "doing the activity fully without being defined by results.<br/>"
-            "3. REDUCING ANXIETY: Both are powerful tools for stress reduction and mental clarity.<br/>"
-            "4. PERFORMANCE ENHANCEMENT: Both improve performance by eliminating the interference "
-            "of result-anxiety and self-consciousness.<br/><br/>"
-            "<b>Differences:</b><br/>"
-            "1. PURPOSE: Karma Yoga aims at spiritual liberation (moksha); mindfulness aims primarily "
-            "at mental health and wellbeing.<br/>"
-            "2. FRAMEWORK: Karma Yoga is embedded in a complete spiritual framework (Dharma, Atman, God); "
-            "mindfulness is secular and clinical.<br/>"
-            "3. DUTY: Karma Yoga specifically teaches Swadharma — acting from one's role/duty; "
-            "mindfulness is context-neutral.<br/>"
-            "4. OFFERING: Karma Yoga includes 'Ishvara Arpana' (offering actions to God); "
-            "mindfulness has no such theological dimension.<br/><br/>"
-            "<b>Conclusion:</b> Modern mindfulness is a secular, therapeutic subset of what Karma Yoga "
-            "offers at a deeper, more comprehensive level. The Gita subsumes mindfulness within a "
-            "complete vision of human purpose and liberation.",
-            S["exam_a"]),
-    ], LIGHT_GREEN, DARK_GREEN))
-    story.append(Spacer(1, 0.3*cm))
-
-    # 10 mark
-    story.append(divider(DARK_SAFFRON))
-    story.append(Paragraph("10-Mark Questions:", S["subtopic"]))
-    story.append(colored_box([
-        Paragraph("Q: Discuss the relevance of living in the present and the concept of Swadharma in modern life. [10 marks]", S["exam_q"]),
-        Paragraph(
-            "<b>INTRODUCTION:</b><br/>"
-            "Two of the most practically relevant teachings of the Bhagavad Gita for modern life are "
-            "'Living in the Present' and the concept of Swadharma. Together, they provide a complete "
-            "framework for meaningful, peaceful, and effective living in the 21st century.<br/><br/>"
-            "<b>PART 1 — LIVING IN THE PRESENT:</b><br/>"
-            "The Gita's entire teaching on Karma Yoga is rooted in present-moment awareness. "
-            "Krishna's instruction to 'perform your duty' is always an instruction to act NOW — "
-            "not to dwell on past failures or future anxieties. BG 2.47 defines this perfectly: "
-            "your right is to action (present), not to results (future).<br/><br/>"
-            "In modern life, the epidemic of anxiety and depression is largely driven by the mind's "
-            "inability to stay present. Studies show that the average person spends 47% of their "
-            "waking time thinking about something other than what they're currently doing (Harvard "
-            "research by Killingsworth and Gilbert, 2010). This mind-wandering directly correlates "
-            "with unhappiness. The Gita's remedy is exact: bring the mind fully to THIS moment, "
-            "THIS action.<br/><br/>"
-            "Living in the present means: (1) While working — full focus on the task, not on the "
-            "appraisal. (2) While in relationships — genuinely present with the person, not "
-            "distracted by the phone. (3) While studying — fully engaged with the subject, "
-            "not worried about marks. This is Karma Yoga in practice.<br/><br/>"
-            "Modern neuroscience confirms: present-moment focus activates the prefrontal cortex "
-            "(executive function, creativity, emotional regulation) and deactivates the default "
-            "mode network (mind-wandering, rumination, anxiety). The Gita's ancient wisdom is "
-            "validated by modern brain science.<br/><br/>"
-            "<b>PART 2 — SWADHARMA IN MODERN LIFE:</b><br/>"
-            "Swadharma (one's own duty) is the Gita's answer to the modern question: "
-            "'What should I do with my life?' BG 3.35 declares: 'Better to perform one's own "
-            "duty imperfectly than another's perfectly.' This is a radical call to authenticity.<br/><br/>"
-            "In modern terms, Swadharma = your calling, your authentic role, your dharmic purpose. "
-            "It encompasses: your professional duty (perform your job with integrity and excellence), "
-            "your relational duty (be present and responsible in your roles as child, parent, friend, "
-            "citizen), and your inner calling (align your work with your deepest gifts and values).<br/><br/>"
-            "The modern crisis of 'choosing the right career' is essentially a Swadharma question. "
-            "When people choose careers based on social pressure, parental expectation, or financial "
-            "reward alone (paradharma), they often succeed externally but suffer internally. "
-            "When they follow their genuine calling (swadharma), work becomes energizing "
-            "and life feels purposeful.<br/><br/>"
-            "Viktor Frankl's 'Man's Search for Meaning' — the foundational text of existential "
-            "psychology — echoes the Gita: humans need meaning (dharma) and present-moment "
-            "engagement to thrive. His logotherapy is essentially a Western version of "
-            "Swadharma + Present-moment Karma Yoga.<br/><br/>"
-            "<b>CONCLUSION:</b><br/>"
-            "Living in the present and following Swadharma are not abstract ideals — they are "
-            "the most practical prescriptions for modern mental health, professional excellence, "
-            "and personal fulfillment. In an age of distraction, comparison, and identity crisis, "
-            "these Gita teachings are more urgently needed than ever. Their timeless wisdom "
-            "finds validation in modern psychology, neuroscience, and organizational management.",
-            S["exam_a"]),
-    ], LIGHT_ORANGE, SAFFRON))
-
-    # 15 mark — split into boxes
-    story.append(PageBreak())
-    story.append(header_bar("📝  15-MARK ANSWER: KARMA YOGA — COMPLETE", S, MAROON))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(colored_box([
-        Paragraph("Q: How does the Gita resolve duty vs. emotion? [15 marks]", S["exam_q"]),
-    ], GRAY_BG, INDIGO))
-    story.append(Spacer(1, 4))
-
-    for label, text, bg, border in [
-        ("INTRODUCTION — The Central Conflict:",
-         "The Bhagavad Gita's most dramatic moment is Arjuna's collapse on the battlefield — "
-         "a perfect illustration of the universal human conflict between DUTY (dharma) and EMOTION "
-         "(moha/attachment). This conflict is not unique to Arjuna. Every person faces it: the "
-         "doctor who must give a painful diagnosis to a loved one, the judge who must sentence "
-         "a friend, the soldier who must fight, the manager who must fire someone. The Gita's "
-         "resolution of this conflict is one of its greatest gifts to humanity.",
-         LIGHT_BLUE, DEEP_BLUE),
-        ("THE PROBLEM — How Emotion Hijacks Duty:",
-         "Arjuna's emotional attachment (moha) causes him to: misidentify himself (as a family "
-         "member rather than a soul with a warrior's duty), confuse sentimentality with wisdom, "
-         "construct 'logical' arguments that are actually rationalizations of fear and grief, "
-         "and abandon his prescribed duty (Swadharma). Krishna diagnoses this precisely in "
-         "BG 2.3: 'O Arjuna, yield not to this unmanliness. It does not become you. Shake off "
-         "your faint-heartedness and arise.' The problem is not emotion per se — it is "
-         "letting emotion override discernment (viveka) and duty (dharma).",
-         LIGHT_RED, MAROON),
-        ("RESOLUTION STEP 1 — Self-Knowledge (Know WHO You Are):",
-         "Krishna first addresses the root cause: Arjuna's misidentification. He teaches that "
-         "Arjuna is NOT the son of Kunti, the student of Drona, the friend of Duryodhana. "
-         "He is an eternal soul (Atman) with a Kshatriya's duty in THIS lifetime. When "
-         "you know your true identity (eternal soul), emotional entanglements with temporary "
-         "bodily relationships lose their tyrannical grip. This is why self-knowledge "
-         "(Sankhya Yoga) must precede Karma Yoga — you must first know WHO you are before "
-         "you can know WHAT you must do.",
-         CREAM, DARK_GOLD),
-        ("RESOLUTION STEP 2 — Swadharma (Know WHAT You Must Do):",
-         "Once Arjuna knows his true identity, his duty becomes clear: he is a Kshatriya, "
-         "the battle is righteous (dharma-yuddha), and fighting is his Swadharma. "
-         "BG 3.35: 'Better to perform one's own duty, though imperfectly, than to perform "
-         "another's duty perfectly.' The Gita does not say 'suppress your emotions and fight.' "
-         "It says 'understand the deeper reality and let your duty flow from that understanding.'",
-         LIGHT_GREEN, DARK_GREEN),
-        ("RESOLUTION STEP 3 — Nishkama Karma (HOW to Fulfill Duty Without Emotional Suffering):",
-         "Even if Arjuna accepts his duty, how does he fight without being destroyed by grief "
-         "at killing his loved ones? The answer is Nishkama Karma: act as an instrument of "
-         "dharma, not as a personal agent driven by ego. When you offer your actions to God "
-         "(Ishvara Arpana), you are no longer personally responsible for outcomes — you are "
-         "an instrument. This frees you from both the paralysis of emotional attachment "
-         "and the guilt of results. The surgeon performs the operation with full skill, "
-         "but offers the outcome to God — this is how duty and emotion are reconciled.",
-         LIGHT_PURPLE, PURPLE_DARK),
-        ("RESOLUTION STEP 4 — Equanimity (Sama-Bhava) and the Gita's Final Answer:",
-         "The Gita doesn't ask Arjuna to stop feeling love for his family. It asks him to "
-         "develop EQUANIMITY — the ability to feel emotions without being controlled by them. "
-         "BG 2.48: 'Be steadfast in yoga, O Arjuna. Perform your duty and abandon all "
-         "attachment to success or failure. Such equanimity is called yoga.' Equanimity "
-         "is NOT indifference — it is the mature capacity to feel deeply AND act wisely "
-         "simultaneously. This is the highest integration of duty and emotion.",
-         LIGHT_ORANGE, SAFFRON),
-        ("MODERN APPLICATION AND CONCLUSION:",
-         "This resolution is urgently needed today. Medical professionals face duty vs. emotion "
-         "daily. Judges must separate personal feelings from justice. Parents must balance love "
-         "with firmness. The Gita's framework — Self-Knowledge + Swadharma + Nishkama Karma "
-         "+ Equanimity — provides a complete, practically applicable solution. "
-         "The Gita resolves duty vs. emotion not by suppressing emotion or ignoring duty, "
-         "but by elevating consciousness to the level where both can coexist in wisdom. "
-         "This is the definition of psychological maturity — and the Gita described it "
-         "5,000 years ago.",
-         CYAN_LIGHT, CYAN_DARK),
-    ]:
-        story.append(colored_box([
-            Paragraph(f"<b>{label}</b>", S["section_label"]),
-            Paragraph(text, S["exam_a"]),
-        ], bg, border))
-        story.append(Spacer(1, 4))
-
-    # ════════════════════════════════════════════════════════════
-    # DHYANA YOGA — SECTION 5
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  DHYANA YOGA (Chapter 6) — TUNING THE MIND", S, PURPLE_DARK))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  What is Dhyana Yoga?", S["subtopic"]))
-    story.append(Paragraph(
-        "<b>Dhyana</b> = Meditation / Contemplation. "
-        "<b>Dhyana Yoga</b> is the yoga of meditation — the systematic practice of training, "
-        "calming, and ultimately transcending the mind to rest in pure awareness. "
-        "Chapter 6 of the Gita is titled 'Dhyana Yoga' or 'Atma-Samyama Yoga' (yoga of "
-        "self-restraint/self-mastery). It is the chapter where Krishna gives detailed, "
-        "practical instructions on meditation — how to sit, where to sit, how to train "
-        "the mind, what to do when the mind wanders, and what the final state of "
-        "meditation feels like.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY VERSE — BG 6.5 (Most Powerful Verse on Self-Mastery):", S["section_label"]),
-        Paragraph(
-            "uddhared atmanatmanam natmanam avasadayet<br/>"
-            "atmaiva hy atmano bandhur atmaiva ripur atmanah",
-            S["verse"]),
-        Paragraph(
-            "<b>Translation:</b> 'A person must elevate himself by his own mind, and not degrade "
-            "himself. The mind is the friend of the conditioned soul, and his enemy as well.' "
-            "— This verse establishes the central theme of Dhyana Yoga: YOU are responsible "
-            "for your mind. The mind can be your greatest ally or your worst enemy — "
-            "the choice is made through meditation and self-discipline.",
-            S["highlight_box"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔑  What 'Tuning the Mind' Means", S["subtopic"]))
-    story.append(Paragraph(
-        "Krishna uses the term 'tuning the mind' (in modern translation) to describe the process "
-        "of bringing the mind into alignment — like tuning a musical instrument or a radio "
-        "receiver. A tuned mind picks up the signal of truth, wisdom, and peace clearly. "
-        "An untuned mind receives only noise: random thoughts, desires, fears, memories. "
-        "The practice of Dhyana Yoga is the process of tuning.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    tuning_elements = [
-        ("What Makes a Mind 'Untuned'?",
-         "An untuned mind is characterized by: Constant internal chatter (monkey mind), "
-         "Racing between past memories and future worries, Compulsive reactions to every "
-         "stimulus, Inability to concentrate on one thing for more than a few minutes, "
-         "Emotional reactivity — being 'triggered' by minor events, No access to deep "
-         "intuition or inner wisdom. This is most people's default state in the modern world."),
-        ("What Does a 'Tuned' Mind Look Like?",
-         "A tuned mind (as described by Krishna in BG 6): Is calm but alert, "
-         "Can focus completely on one object/task for extended periods, "
-         "Observes thoughts without being swept away by them, "
-         "Responds to situations rather than reacting compulsively, "
-         "Has access to deep intuition, creativity, and wisdom, "
-         "Rests in inner silence even while engaged in outer activity."),
-        ("How Karma Yoga and Dhyana Yoga Connect",
-         "Karma Yoga (outer) and Dhyana Yoga (inner) are complementary practices. "
-         "Karma Yoga tunes the mind through action — by practicing non-attachment, "
-         "present-moment focus, and Swadharma in daily life. "
-         "Dhyana Yoga tunes the mind through formal meditation — by training it "
-         "in stillness and withdrawal. Together they create the complete yogic life: "
-         "active and still, engaged and at peace, working and meditating."),
-    ]
-    for title, content in tuning_elements:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], LIGHT_BLUE, DEEP_BLUE))
-        story.append(Spacer(1, 4))
-
-    # ════════════════════════════════════════════════════════════
-    # TOPIC 6 — QUANTITY QUALITY DIRECTION OF THOUGHTS
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  TOPIC 6: QUANTITY, QUALITY AND DIRECTION OF THOUGHTS", S, INDIGO))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  The Gita's Analysis of the Mind's Three Problems", S["subtopic"]))
-    story.append(Paragraph(
-        "Dhyana Yoga is, at its core, a systematic science of the mind. The Gita identifies that "
-        "the untrained mind has THREE fundamental problems that meditation must address. "
-        "Understanding these three dimensions — Quantity, Quality, and Direction of thoughts — "
-        "gives a complete picture of what mental training involves.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    # QUANTITY
-    story.append(colored_box([
-        Paragraph("1. QUANTITY OF THOUGHTS — The Mind Thinks Too Much", S["section_label"]),
-    ], DEEP_BLUE, DEEP_BLUE))
-    story.append(Spacer(1, 0.1*cm))
-
-    quantity_content = [
-        ("The Problem — Thought Overload",
-         "Modern research suggests the average human mind generates 60,000–80,000 thoughts per day. "
-         "Of these, approximately 95% are repetitive (the same thoughts recycled over and over) "
-         "and 80% are negative. This constant mental noise is exhausting, prevents clear thinking, "
-         "and creates chronic stress. The Gita describes this as 'chanchal' (restless) and "
-         "'pramathi' (agitating) and 'balavad' (powerfully forceful) mind — BG 6.34."),
-        ("The Gita's Solution — Reduce Thought Volume",
-         "Krishna teaches that meditation reduces the sheer quantity of thoughts by: "
-         "(1) Training the mind to focus on ONE object (Dharana), reducing scattered thinking. "
-         "(2) Watching thoughts without feeding them — a thought without attention dies "
-         "naturally. (3) Gradually creating gaps between thoughts — these gaps are where "
-         "peace resides. (4) The practice of Pratyahara (withdrawal of senses) reduces "
-         "the external stimuli that generate thoughts."),
-        ("BG 6.34-35 — Arjuna's Complaint and Krishna's Answer",
-         "Arjuna himself admits: 'The mind is restless, turbulent, obstinate, and very strong, "
-         "O Krishna, and to subdue it, I think, is more difficult than controlling the wind.' "
-         "(BG 6.34). Krishna agrees — the mind IS difficult to control. But he gives "
-         "the solution in BG 6.35: 'Undoubtedly the mind is restless and difficult to "
-         "control, but it can be controlled by constant practice (abhyasa) and "
-         "detachment (vairagya).' These two — PRACTICE and DETACHMENT — are the "
-         "master keys to reducing thought quantity."),
-    ]
-    for title, content in quantity_content:
-        story.append(colored_box([
-            Paragraph(f"<b>{title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], LIGHT_BLUE, INDIGO))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.2*cm))
-
-    # QUALITY
-    story.append(colored_box([
-        Paragraph("2. QUALITY OF THOUGHTS — The Mind Thinks Unhealthy Thoughts", S["section_label"]),
-    ], DARK_GREEN, DARK_GREEN))
-    story.append(Spacer(1, 0.1*cm))
-
-    quality_content = [
-        ("The Problem — Toxic Thought Patterns",
-         "Not just the quantity but the QUALITY of thoughts determines mental health. "
-         "The Gita describes how impure thoughts (driven by desire, anger, greed, jealousy) "
-         "create a cascade of destruction. BG 2.62-63 describes the 'chain of ruin': "
-         "Contemplating sense objects -> Attachment -> Desire -> Anger -> "
-         "Delusion -> Memory failure -> Intelligence destroyed -> Fall. "
-         "Each low-quality thought strengthens the neural pathway of that thought pattern."),
-        ("Three Categories of Thought Quality (related to Three Gunas)",
-         "TAMASIC thoughts: Dull, dark, depressive, destructive, delusional — 'Everything "
-         "is hopeless, I am worthless, nothing matters.' These drag consciousness down. "
-         "RAJASIC thoughts: Excited, agitated, craving, ambitious, anxious — 'I must have "
-         "this, I fear that, I want more.' These scatter energy. "
-         "SATTVIC thoughts: Clear, compassionate, truthful, peaceful, wisdom-oriented — "
-         "'What is right? How can I help? What is true?' These elevate consciousness."),
-        ("The Gita's Solution — Cultivate Sattvic Thoughts",
-         "Dhyana Yoga improves thought quality by: (1) REPLACING tamasic/rajasic thoughts "
-         "with sattvic ones through satsanga (good company), svadhyaya (self-study/scripture), "
-         "and mantra. (2) OBSERVING thoughts without identification — when you watch a "
-         "toxic thought without believing it, its power dissolves. (3) MEDITATION purifies "
-         "thought quality at the source — regular deep meditation progressively reduces "
-         "negative thought generation. BG 17.16: 'Purity of mind (chitta-prasada) is "
-         "austerity of the mind — cultivating thoughts of equanimity, compassion, silence.'"),
-    ]
-    for title, content in quality_content:
-        story.append(colored_box([
-            Paragraph(f"<b>{title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], LIGHT_GREEN, DARK_GREEN))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.2*cm))
-
-    # DIRECTION
-    story.append(colored_box([
-        Paragraph("3. DIRECTION OF THOUGHTS — The Mind Points in the Wrong Direction", S["section_label"]),
-    ], DARK_SAFFRON, DARK_SAFFRON))
-    story.append(Spacer(1, 0.1*cm))
-
-    direction_content = [
-        ("The Problem — Outward-Pointing Mind",
-         "The untrained mind is habitually EXTROVERTED — constantly directed outward toward "
-         "sense objects, external events, other people's opinions. It seeks happiness, security, "
-         "and meaning entirely in the external world. The Gita calls this 'bahirmukhi' "
-         "(outward-facing). This creates perpetual dependence on external circumstances "
-         "for inner wellbeing — an impossible and exhausting condition."),
-        ("The Solution — Inward-Pointing Mind (Antarmukhi)",
-         "Dhyana Yoga teaches the mind to turn INWARD — toward the source of awareness itself. "
-         "This is called 'pratyahara' (withdrawal of senses) in the Yoga tradition. "
-         "When the mind rests in pure awareness — the silent witness behind all thoughts "
-         "and perceptions — it discovers the only permanently satisfying peace. "
-         "BG 6.20-21: 'In that state of yoga, the meditator, by the grace of the self, "
-         "becomes free from anxiety, and in that condition of self-realization, "
-         "one finds nothing superior. Being so situated, one is never shaken even in "
-         "the midst of the greatest difficulty.'"),
-        ("God/Brahman as the Final Direction",
-         "The ultimate direction for thoughts in Dhyana Yoga is toward the Divine — toward "
-         "Brahman, Krishna, the eternal truth. BG 6.14: 'With a serene and fearless mind, "
-         "firm in the brahmacharya vow, controlling the mind, let him sit in yoga, "
-         "thinking of Me and having Me as the supreme goal.' When thoughts are directed "
-         "toward the highest — toward truth, beauty, love, God — they become devotion "
-         "(bhakti) and meditation simultaneously. Direction of thought = direction of life."),
-        ("The Three Directions in Practice",
-         "DOWNWARD direction (tamas): Thoughts toward self-pity, addiction, violence, "
-         "delusion — spiritually degrading. "
-         "HORIZONTAL direction (rajas): Thoughts toward worldly ambitions, sensory pleasure, "
-         "social status — spiritually neutral, potentially purifiable. "
-         "UPWARD direction (sattva/beyond): Thoughts toward truth, wisdom, service, God — "
-         "spiritually elevating. Dhyana Yoga progressively shifts the default direction "
-         "of thinking from downward/horizontal to upward."),
-    ]
-    for title, content in direction_content:
-        story.append(colored_box([
-            Paragraph(f"<b>{title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], CREAM, DARK_SAFFRON))
-        story.append(Spacer(1, 3))
-
-    # ════════════════════════════════════════════════════════════
-    # TOPIC 7 — REACHING INNER SILENCE
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📚  TOPIC 7: REACHING INNER SILENCE — THE GOAL OF DHYANA YOGA", S, TEAL))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🔍  What is Inner Silence?", S["subtopic"]))
-    story.append(Paragraph(
-        "Inner Silence does not mean complete absence of thoughts or the death of the mind. "
-        "It means a state of <b>deep inner stillness and peace</b> that coexists with — and "
-        "underlies — all external activity. It is the silence between the notes that makes "
-        "music possible; the space between words that makes language meaningful; the "
-        "stillness behind all movement. In the Gita and Yoga traditions, this is called "
-        "<b>Shanti</b> (peace), <b>Samadhi</b> (absorption), or <b>Nirvana</b> — the "
-        "ultimate goal of all meditation.", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY VERSE — BG 6.20-22 (Description of Inner Silence / Samadhi):", S["section_label"]),
-        Paragraph(
-            "In the stage of perfection called trance or samadhi, one's mind is completely "
-            "restrained from material mental activities by practice of yoga. This is "
-            "characterized by one's ability to see the self by the pure mind, and to relish "
-            "and rejoice in the self. In that joyous state, one is situated in boundless "
-            "transcendental happiness, realized through transcendental senses. Established "
-            "thus, one never departs from the truth, and upon gaining this he thinks "
-            "there is no greater gain.",
-            S["verse"]),
-        Paragraph(
-            "This is the state of Inner Silence — not emptiness, but fullness. "
-            "Not nothingness, but pure consciousness. Not absence, but the most "
-            "profound presence.",
-            S["note"]),
-    ], LIGHT_ORANGE, SAFFRON))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🧘  The Step-by-Step Process of Reaching Inner Silence", S["subtopic"]))
-    story.append(Paragraph(
-        "The Gita and classical Yoga tradition (Patanjali's Ashtanga Yoga) describe "
-        "a progressive process of moving from outer noise to inner silence:", S["body"]))
-    story.append(Spacer(1, 0.2*cm))
-
-    steps_data = [
-        [Paragraph("<b>Step</b>",S["table_head"]),
-         Paragraph("<b>Sanskrit Term</b>",S["table_head"]),
-         Paragraph("<b>Practice</b>",S["table_head"]),
-         Paragraph("<b>What Happens</b>",S["table_head"])],
-        [Paragraph("1",S["table_cell"]),
-         Paragraph("Yama / Niyama",S["table_cell"]),
-         Paragraph("Ethical living, self-discipline",S["table_cell"]),
-         Paragraph("Mind stops generating guilt, conflict. Foundation for peace.",S["table_cell"])],
-        [Paragraph("2",S["table_cell"]),
-         Paragraph("Asana",S["table_cell"]),
-         Paragraph("Physical posture — sitting still (BG 6.13)",S["table_cell"]),
-         Paragraph("Body stillness reduces mental agitation. 'Sukham sthiram asanam.'",S["table_cell"])],
-        [Paragraph("3",S["table_cell"]),
-         Paragraph("Pranayama",S["table_cell"]),
-         Paragraph("Breath regulation",S["table_cell"]),
-         Paragraph("Breath and mind are connected. Slow breath = slow mind. Thought quantity drops.",S["table_cell"])],
-        [Paragraph("4",S["table_cell"]),
-         Paragraph("Pratyahara",S["table_cell"]),
-         Paragraph("Withdrawal of senses from objects",S["table_cell"]),
-         Paragraph("External stimuli stop feeding thoughts. Like tortoise withdrawing limbs (BG 2.58).",S["table_cell"])],
-        [Paragraph("5",S["table_cell"]),
-         Paragraph("Dharana",S["table_cell"]),
-         Paragraph("Concentration on one point",S["table_cell"]),
-         Paragraph("Mind narrows to one focus. Thought quantity dramatically reduces.",S["table_cell"])],
-        [Paragraph("6",S["table_cell"]),
-         Paragraph("Dhyana",S["table_cell"]),
-         Paragraph("Sustained meditation — unbroken flow of attention",S["table_cell"]),
-         Paragraph("Observer and object begin to merge. Deep peace. Time sense dissolves.",S["table_cell"])],
-        [Paragraph("7",S["table_cell"]),
-         Paragraph("Samadhi",S["table_cell"]),
-         Paragraph("Complete absorption — Inner Silence",S["table_cell"]),
-         Paragraph("No subject-object division. Pure awareness. Boundless joy. This IS Inner Silence.",S["table_cell"])],
-    ]
-    st = Table(steps_data, colWidths=[1.2*cm, 3*cm, 5*cm, 7.3*cm])
-    st.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),TEAL),
-        ("BACKGROUND",(0,1),(-1,1),LIGHT_ORANGE),
-        ("BACKGROUND",(0,2),(-1,2),CREAM),
-        ("BACKGROUND",(0,3),(-1,3),LIGHT_ORANGE),
-        ("BACKGROUND",(0,4),(-1,4),CREAM),
-        ("BACKGROUND",(0,5),(-1,5),LIGHT_ORANGE),
-        ("BACKGROUND",(0,6),(-1,6),CREAM),
-        ("BACKGROUND",(0,7),(-1,7),LIGHT_ORANGE),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#80CBC4")),
-        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
-        ("LEFTPADDING",(0,0),(-1,-1),6),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(st)
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(Paragraph("🌊  Characteristics of Inner Silence (What It Feels Like)", S["subtopic"]))
-    inner_silence_chars = [
-        ("Beyond Happiness and Unhappiness",
-         "Inner silence is not 'feeling happy' (which depends on external events). It is "
-         "a baseline state of peace that is independent of circumstances. The Gita calls "
-         "it 'atma-tusti' (contentment in the self) — a joy that has no opposite, "
-         "because it does not come from any cause."),
-        ("The Witness State (Sakshi Bhava)",
-         "In inner silence, one rests as the witness (sakshi) — the awareness that "
-         "observes thoughts, emotions, and perceptions without being identified with "
-         "any of them. Like a mirror that reflects everything but is not touched by "
-         "any reflection. BG 6.29: 'A yogi sees all beings equally — in me, and me in all.'"),
-        ("Unshakeable Stability",
-         "BG 6.20: 'In that state one is never shaken even in the midst of greatest "
-         "difficulty.' This is not emotional numbness — it is a stability so deep that "
-         "external storms cannot reach the center. The ocean's surface has waves; "
-         "its depths are always still. Inner silence is the depth."),
-        ("Effortless Action (Sahaja Yoga)",
-         "Paradoxically, from a state of inner silence, action becomes MORE effective, "
-         "not less. Without mental noise, decisions are clear. Without result-anxiety, "
-         "performance is free. This is why the greatest creative work, the wisest "
-         "decisions, and the most courageous actions often arise from a state of "
-         "inner stillness. Inner silence and outer excellence go together."),
-    ]
-    for title, content in inner_silence_chars:
-        story.append(colored_box([
-            Paragraph(f"<b>◆ {title}</b>", S["section_label"]),
-            Paragraph(content, S["highlight_box"]),
-        ], CYAN_LIGHT, CYAN_DARK))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.2*cm))
-    story.append(Paragraph("📋  Practical Instructions for Meditation (BG Chapter 6)", S["subtopic"]))
-    story.append(colored_box([
-        Paragraph("Krishna's Practical Meditation Instructions (BG 6.10-17):", S["section_label"]),
-        Paragraph("PLACE: Sit in a clean, secluded place. Not too high, not too low. "
-                  "Use a seat of kusha grass, deer skin, and cloth (modern: meditation cushion/chair).", S["bullet"]),
-        Paragraph("POSTURE: Hold body, neck, and head in a straight line. Eyes gently "
-                  "focused at the tip of the nose or between eyebrows. Neither staring nor closed.", S["bullet"]),
-        Paragraph("DIET: Not too much, not too little. BG 6.17: 'Yoga is not for one "
-                  "who eats too much or too little, nor for one who sleeps too much or too little.'", S["bullet"]),
-        Paragraph("REGULARITY: Practice at the same time daily (traditionally: dawn and dusk). "
-                  "Consistency builds the groove (samskara) of meditation faster than intensity.", S["bullet"]),
-        Paragraph("OBJECT OF FOCUS: Fix the mind on the Self (Atman) or on God (Krishna). "
-                  "When the mind wanders — and it will — gently bring it back without frustration. "
-                  "BG 6.26: 'From wherever the mind wanders due to its flickering and unsteady nature, "
-                  "one must certainly withdraw it and bring it back under the control of the Self.'", S["bullet"]),
-        Paragraph("ATTITUDE: No force, no strain. The Gita recommends 'yukta-cheshta' — "
-                  "balanced effort. Neither too tight (suppression) nor too loose (indulgence).", S["bullet"]),
-        Paragraph("DURATION: Start with 15-20 minutes. Krishna says even a little practice "
-                  "saves from great fear. BG 2.40: 'In this endeavor there is no loss or diminution, "
-                  "and a little advancement on this path can protect one from the most dangerous type of fear.'", S["bullet"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-
-    # ════════════════════════════════════════════════════════════
-    # DHYANA YOGA Q&A
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("📝  EXAM QUESTIONS — DHYANA YOGA (All Mark Levels)", S, DEEP_BLUE))
-    story.append(Spacer(1, 0.3*cm))
-
-    # 1.5 mark
-    dhyana_short = [
-        ("What is Dhyana Yoga?",
-         "Dhyana Yoga is the yoga of meditation — the systematic practice of calming, "
-         "purifying, and mastering the mind to rest in pure inner awareness. Chapter 6 of "
-         "the Gita describes it in detail. The mind is first concentrated (dharana), then "
-         "flows in sustained meditation (dhyana), culminating in complete absorption (samadhi) "
-         "— the state of inner silence and transcendental joy."),
-        ("Define meditation in the Gita context.",
-         "In the Gita context, meditation (dhyana) is the unbroken flow of attention toward "
-         "a single object — the Self (Atman) or God. It is the 6th step in the 8-limb yoga "
-         "path, following concentration (dharana). When attention flows without interruption "
-         "like oil poured from one vessel to another, that is dhyana. The goal is samadhi — "
-         "complete union with the object of meditation."),
-        ("What does living in the present mean?",
-         "Living in the present means acting with full awareness in THIS moment — not "
-         "trapped in past regrets or future anxieties. In Karma Yoga, only the present "
-         "moment contains the possibility of action. Krishna's instruction to 'perform "
-         "your duty' is always an instruction to act NOW, with complete attention and "
-         "without anxiety about results."),
-        ("Name the two aspects of the Divine.",
-         "The Gita describes the Divine in two aspects: (1) <b>Saguna Brahman</b> — "
-         "the Divine with qualities/form (Krishna, Vishnu, Shiva — the personal God "
-         "with attributes like compassion, wisdom, power). (2) <b>Nirguna Brahman</b> — "
-         "the Divine without qualities/form (the formless, attribute-less absolute "
-         "consciousness — the impersonal Absolute). Both are valid and lead to liberation."),
-    ]
-    for q, a in dhyana_short:
-        story.append(colored_box([
-            Paragraph(f"<b>Q: {q} [1.5 marks]</b>", S["exam_q"]),
-            Paragraph(a, S["exam_a"]),
-        ], GRAY_BG, HexColor("#BDBDBD")))
-        story.append(Spacer(1, 4))
-
-    story.append(divider(PURPLE_DARK))
-    # 5 mark
-    story.append(Paragraph("5-Mark Questions:", S["subtopic"]))
-    story.append(colored_box([
-        Paragraph("Q: How does self-knowledge lead to peace? [5 marks]", S["exam_q"]),
-        Paragraph(
-            "<b>Introduction:</b> The Gita establishes a direct causal link: self-knowledge "
-            "(Atma-Jnana) leads to freedom from fear and grief, which is the foundation of "
-            "genuine peace (Shanti).<br/><br/>"
-            "<b>Step 1 — Self-Knowledge Removes the Root Cause of Anxiety:</b> All anxiety "
-            "arises from identifying with the temporary (body, relationships, possessions, "
-            "reputation). When we know ourselves as the eternal Atman — beyond birth, death, "
-            "pleasure, and pain — the root cause of anxiety dissolves. There is nothing to "
-            "fear when you know yourself as indestructible.<br/><br/>"
-            "<b>Step 2 — Desires Naturally Reduce:</b> BG 2.55 — when one abandons all "
-            "mental desires and finds contentment within the self alone, that is the Sthita-Prajna. "
-            "Self-knowledge reveals that the self is already complete — no external acquisition "
-            "is needed for inner fullness. This eliminates craving (the source of all suffering).<br/><br/>"
-            "<b>Step 3 — Equanimity Naturally Arises:</b> Knowing the soul is beyond sorrow and "
-            "joy, the self-knower becomes equanimous — able to experience life's ups and downs "
-            "without being destabilized. This equanimity IS peace — not the peace of numbness, "
-            "but the peace of deep, unshakeable clarity.<br/><br/>"
-            "<b>Step 4 — Meditation Deepens and Stabilizes Peace:</b> Self-knowledge gained "
-            "intellectually through study (jnana) must be stabilized through meditation (dhyana). "
-            "Dhyana Yoga takes the intellectual understanding of 'I am the eternal Atman' "
-            "and makes it a direct, living experience. This experiential knowledge IS samadhi — "
-            "the state of permanent inner peace.<br/><br/>"
-            "<b>Conclusion:</b> Self-knowledge leads to peace through a clear sequence: "
-            "knowing the eternal self removes fear and craving, which produces equanimity, "
-            "which deepens through meditation into the permanent inner silence described "
-            "in BG 6.20-22.",
-            S["exam_a"]),
-    ], LIGHT_BLUE, DEEP_BLUE))
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(colored_box([
-        Paragraph("Q: Explain the body-mind-consciousness distinction. [5 marks]", S["exam_q"]),
-        Paragraph(
-            "<b>Introduction:</b> The Bhagavad Gita, particularly in Sankhya and Dhyana Yoga, "
-            "presents a sophisticated three-level understanding of the human being: "
-            "Body, Mind, and Consciousness (Soul). Understanding this distinction is "
-            "essential for both Karma Yoga and Dhyana Yoga practice.<br/><br/>"
-            "<b>1. The Body (Sthula Sharira — Gross Body):</b> The physical body composed of "
-            "five elements (earth, water, fire, air, space). It is temporary, changing, and "
-            "ultimately dissolved at death. The body is the outermost layer (kosha) — the "
-            "tool through which the soul interacts with the world. "
-            "Gita teaching: The body is like a garment — it can be worn and discarded. "
-            "Don't misidentify yourself as the body.<br/><br/>"
-            "<b>2. The Mind (Sukshma Sharira — Subtle Body):</b> The mind includes Manas "
-            "(processing mind), Buddhi (intellect/discriminating intelligence), Ahamkara "
-            "(ego/sense of 'I'), and Chitta (memory/subconscious storehouse). It survives "
-            "the death of the gross body and carries karmic impressions (samskaras) into "
-            "the next life. Dhyana Yoga specifically works on purifying and stilling the mind.<br/><br/>"
-            "<b>3. Consciousness (Atman/Soul):</b> The eternal, pure awareness that animates "
-            "both body and mind. It is the witness (sakshi) — the one who sees without being "
-            "seen, knows without being known. It is unborn, undying, unchanging. "
-            "All yoga practices ultimately aim at the direct EXPERIENCE of this consciousness.<br/><br/>"
-            "<b>Practical Implication:</b> Meditation works progressively through these layers: "
-            "first stilling the body (asana), then calming the mind (pranayama, pratyahara, "
-            "dharana, dhyana), until pure consciousness (Atman) shines in its own glory as "
-            "inner silence. The meditator realizes: 'I am not the body, not the mind — "
-            "I am the pure consciousness witnessing all.'",
-            S["exam_a"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-
-    # 15 mark Dhyana Yoga
-    story.append(PageBreak())
-    story.append(header_bar("📝  15-MARK: DHYANA YOGA — FULL ANSWER", S, TEAL))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(colored_box([
-        Paragraph("Q: Describe the essence and practice of Dhyana Yoga. How does tuning the mind help in achieving inner silence? [15 marks]", S["exam_q"]),
-    ], GRAY_BG, TEAL))
-    story.append(Spacer(1, 4))
-
-    dhyana_15 = [
-        ("INTRODUCTION — What is Dhyana Yoga?",
-         "Dhyana Yoga (Chapter 6 of the Bhagavad Gita, also called Atma-Samyama Yoga — Yoga of "
-         "Self-Restraint) is the systematic science and art of meditation. 'Dhyana' means "
-         "unbroken, sustained attention — like oil flowing from one vessel to another without "
-         "interruption. Krishna dedicates an entire chapter to this because, while Karma Yoga "
-         "purifies the mind through righteous action, Dhyana Yoga completes the purification "
-         "by bringing the mind to perfect stillness — Inner Silence. The ultimate goal is "
-         "Samadhi: complete absorption in the Self, the state of transcendental peace and joy.",
-         LIGHT_BLUE, DEEP_BLUE),
-        ("ESSENCE OF DHYANA YOGA — BG 6.5 (The Core Teaching):",
-         "The most important verse of Dhyana Yoga: BG 6.5 — 'One must elevate oneself by one's "
-         "own mind, and not degrade oneself. The mind is the friend of the conditioned soul, "
-         "and his enemy as well.' This captures the essence: YOU are responsible for your mind. "
-         "The mind in its untrained state is the greatest enemy — restless, scattered, addicted "
-         "to sense pleasure, driven by fear. The mind in its trained state is the greatest friend — "
-         "a clear, focused instrument that reveals truth and produces peace.",
-         CREAM, DARK_GOLD),
-        ("TUNING THE MIND — QUANTITY, QUALITY AND DIRECTION OF THOUGHTS:",
-         "Dhyana Yoga tunes the mind across THREE dimensions:<br/>"
-         "(A) QUANTITY: BG 6.34-35 — The mind generates thousands of repetitive, negative "
-         "thoughts daily. Abhyasa (regular practice) and Vairagya (detachment) reduce this "
-         "mental noise. Concentration on a single object (dharana) focuses the scattered mind.<br/>"
-         "(B) QUALITY: The Gita (through the Trigunas) shows thought quality ranges from "
-         "tamasic (dark/depressive), through rajasic (restless/craving), to sattvic "
-         "(clear/compassionate). Meditation, good company (satsanga), scripture study, and "
-         "mantra systematically upgrade thought quality from tamas/rajas to sattva.<br/>"
-         "(C) DIRECTION: The untrained mind is 'bahirmukhi' (outward-facing) — always seeking "
-         "happiness in external objects. Pratyahara (sense-withdrawal) turns the mind "
-         "INWARD (antarmukhi). The final direction is toward God/Atman — the source of "
-         "all peace and joy. BG 6.14: 'Let him sit thinking of Me and having Me as the supreme goal.'",
-         LIGHT_GREEN, DARK_GREEN),
-        ("STEP-BY-STEP PRACTICE (BG Chapter 6 Instructions):",
-         "Krishna gives remarkably practical instructions: "
-         "PLACE: Clean, quiet, secluded. Neither too high nor too low. "
-         "POSTURE (BG 6.13): Body/neck/head straight. Eyes softly focused. "
-         "DIET (BG 6.17): Balanced — not excessive or deficient in food, sleep, or activity. "
-         "TIMING: Regular practice at same time. Consistency over intensity. "
-         "FOCUS: Fix attention on the Self or God. "
-         "WHEN MIND WANDERS (BG 6.26): 'From wherever the mind wanders, bring it back "
-         "to the Self.' Not with frustration — gently, patiently, repeatedly. "
-         "ATTITUDE: Neither too tight (suppression) nor too loose (indulgence). "
-         "Balanced effort — yukta-cheshta.",
-         LIGHT_ORANGE, SAFFRON),
-        ("THE PROGRESSIVE JOURNEY TO INNER SILENCE:",
-         "Inner silence is reached progressively through the eight limbs of yoga: "
-         "Ethical living (Yama/Niyama) creates a foundation of mental peace. "
-         "Asana (physical stillness) reduces gross agitation. "
-         "Pranayama (breath regulation) — slow breath = slow mind. "
-         "Pratyahara (sense withdrawal) stops external stimuli from feeding thoughts. "
-         "Dharana (concentration) narrows the mind to one focus. "
-         "Dhyana (sustained meditation) — observer and object begin to merge. "
-         "Samadhi — the final state: no subject-object division; pure awareness; "
-         "transcendental joy; THIS is Inner Silence.",
-         LIGHT_PURPLE, PURPLE_DARK),
-        ("WHAT INNER SILENCE ACTUALLY IS (BG 6.20-22):",
-         "BG 6.20-22 beautifully describes Inner Silence: mind restrained from material "
-         "activities; ability to see the self by the pure mind; relishing joy IN the self; "
-         "boundless transcendental happiness; established in truth; 'there is no greater gain.' "
-         "Inner Silence is: NOT emptiness but fullness, NOT numbness but heightened awareness, "
-         "NOT absence but the most profound presence, NOT passive but the source of most "
-         "effective action. The ocean metaphor: surface has waves (activity), depths are "
-         "always still (inner silence). The yogi lives at the depth while engaging the surface.",
-         CYAN_LIGHT, CYAN_DARK),
-        ("MODERN SCIENCE VALIDATION AND CONCLUSION:",
-         "Modern neuroscience validates Dhyana Yoga: Regular meditation increases gray matter "
-         "density in prefrontal cortex (focus, decision-making), reduces amygdala reactivity "
-         "(fear, anger), increases anterior insula activity (self-awareness), and strengthens "
-         "default mode network regulation (reduces mind-wandering). Dr. Herbert Benson (Harvard) "
-         "calls meditation 'the relaxation response' — physiologically opposite to the stress "
-         "response. Long-term meditators show measurable changes in brain structure and function "
-         "consistent with the states the Gita describes. Dhyana Yoga, therefore, is both "
-         "ancient wisdom AND cutting-edge neuroscience. Its practice of tuning the mind — "
-         "reducing quantity of thoughts, improving their quality, and redirecting them inward "
-         "toward the Divine — is the most reliable path to the Inner Silence that the human "
-         "soul has always sought.",
-         LIGHT_GREEN, DARK_GREEN),
-    ]
-    for label, text, bg, border in dhyana_15:
-        story.append(colored_box([
-            Paragraph(f"<b>{label}</b>", S["section_label"]),
-            Paragraph(text, S["exam_a"]),
-        ], bg, border))
-        story.append(Spacer(1, 4))
-
-    # 10 mark - Compare
-    story.append(PageBreak())
-    story.append(header_bar("📝  10-MARK: COMPARE BHAKTI, KARMA, DHYANA YOGA", S, INDIGO))
-    story.append(Spacer(1, 0.2*cm))
-    story.append(colored_box([
-        Paragraph("Q: Compare Bhakti, Karma, Dhyana Yoga. [15 marks / 10 marks]", S["exam_q"]),
-    ], GRAY_BG, INDIGO))
-    story.append(Spacer(1, 4))
-
-    compare_yoga = [
-        [Paragraph("<b>Aspect</b>",S["table_head"]),
-         Paragraph("<b>Karma Yoga</b>",S["table_head"]),
-         Paragraph("<b>Dhyana Yoga</b>",S["table_head"]),
-         Paragraph("<b>Bhakti Yoga</b>",S["table_head"])],
-        [Paragraph("Meaning",S["table_cell"]),
-         Paragraph("Yoga of Action",S["table_cell"]),
-         Paragraph("Yoga of Meditation",S["table_cell"]),
-         Paragraph("Yoga of Devotion",S["table_cell"])],
-        [Paragraph("Main Chapter",S["table_cell"]),
-         Paragraph("Chapter 3, 4",S["table_cell"]),
-         Paragraph("Chapter 6",S["table_cell"]),
-         Paragraph("Chapter 12",S["table_cell"])],
-        [Paragraph("Core Teaching",S["table_cell"]),
-         Paragraph("Act without ego-attachment to results",S["table_cell"]),
-         Paragraph("Calm the mind through meditation",S["table_cell"]),
-         Paragraph("Love and surrender to God",S["table_cell"])],
-        [Paragraph("Primary Path",S["table_cell"]),
-         Paragraph("Through DOING",S["table_cell"]),
-         Paragraph("Through BEING STILL",S["table_cell"]),
-         Paragraph("Through LOVING",S["table_cell"])],
-        [Paragraph("Main Tool",S["table_cell"]),
-         Paragraph("Righteous work, Swadharma",S["table_cell"]),
-         Paragraph("Meditation, concentration",S["table_cell"]),
-         Paragraph("Prayer, chanting, worship",S["table_cell"])],
-        [Paragraph("Obstacle to Overcome",S["table_cell"]),
-         Paragraph("Desire for rewards, ego",S["table_cell"]),
-         Paragraph("Restless, scattered mind",S["table_cell"]),
-         Paragraph("Self-centeredness, pride",S["table_cell"])],
-        [Paragraph("Who Is It For?",S["table_cell"]),
-         Paragraph("Active temperament (Kshatriya/Vaishya nature)",S["table_cell"]),
-         Paragraph("Introspective/Intellectual nature",S["table_cell"]),
-         Paragraph("Emotional/Devotional temperament",S["table_cell"])],
-        [Paragraph("Key Verse",S["table_cell"]),
-         Paragraph("BG 2.47",S["table_cell"]),
-         Paragraph("BG 6.5, 6.35",S["table_cell"]),
-         Paragraph("BG 12.13-14",S["table_cell"])],
-        [Paragraph("Goal",S["table_cell"]),
-         Paragraph("Liberation through selfless work",S["table_cell"]),
-         Paragraph("Liberation through inner silence/samadhi",S["table_cell"]),
-         Paragraph("Liberation through love and surrender",S["table_cell"])],
-        [Paragraph("Modern Parallel",S["table_cell"]),
-         Paragraph("Flow state, process focus, mindful work",S["table_cell"]),
-         Paragraph("Mindfulness meditation, MBSR",S["table_cell"]),
-         Paragraph("Positive psychology, gratitude practice",S["table_cell"])],
-    ]
-    cyt = Table(compare_yoga, colWidths=[3*cm, 4.5*cm, 4.5*cm, 4.5*cm])
-    cyt.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),INDIGO),
-        ("BACKGROUND",(0,1),(-1,1),CREAM),
-        ("BACKGROUND",(0,2),(-1,2),LIGHT_BLUE),
-        ("BACKGROUND",(0,3),(-1,3),CREAM),
-        ("BACKGROUND",(0,4),(-1,4),LIGHT_BLUE),
-        ("BACKGROUND",(0,5),(-1,5),CREAM),
-        ("BACKGROUND",(0,6),(-1,6),LIGHT_BLUE),
-        ("BACKGROUND",(0,7),(-1,7),CREAM),
-        ("BACKGROUND",(0,8),(-1,8),LIGHT_BLUE),
-        ("BACKGROUND",(0,9),(-1,9),CREAM),
-        ("BACKGROUND",(0,10),(-1,10),LIGHT_BLUE),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#90A4AE")),
-        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
-        ("LEFTPADDING",(0,0),(-1,-1),6),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(cyt)
-    story.append(Spacer(1, 0.3*cm))
-
-    story.append(colored_box([
-        Paragraph("KEY INSIGHT — The Three Yogas Are ONE Path:", S["section_label"]),
-        Paragraph(
-            "The Gita does not present these as competing paths — they are three aspects of "
-            "the ONE complete yogic life. Krishna says in BG 5.4-5: 'Only the ignorant speak "
-            "of Karma Yoga and Sankhya (Jnana) Yoga as different. Those truly learned say that "
-            "one who applies oneself to either path obtains the results of both.'<br/><br/>"
-            "In practice: A person acts in the world with Karma Yoga (non-attached, dutiful action), "
-            "worships and loves God with Bhakti Yoga (devotion, surrender), and meditates daily "
-            "with Dhyana Yoga (inner stillness). Together they form the complete spiritual life "
-            "that the Gita envisions. All three ultimately lead to the same destination: "
-            "liberation (moksha) and permanent peace (shanti).",
-            S["highlight_box"]),
-    ], LIGHT_PURPLE, PURPLE_DARK))
-
-    # ════════════════════════════════════════════════════════════
-    # FINAL RAPID REVISION TABLE
-    # ════════════════════════════════════════════════════════════
-    story.append(PageBreak())
-    story.append(header_bar("⚡  RAPID REVISION — MODULE 2 MASTER SUMMARY", S, TEAL))
-    story.append(Spacer(1, 0.3*cm))
-
-    rev_data = [
-        [Paragraph("<b>Topic</b>",S["table_head"]),
-         Paragraph("<b>Core Concept</b>",S["table_head"]),
-         Paragraph("<b>Key Verse</b>",S["table_head"]),
-         Paragraph("<b>Exam %</b>",S["table_head"])],
-        [Paragraph("Karma Yoga",S["table_cell"]),
-         Paragraph("Action without ego-attachment; 3 pillars: do duty / no claim on results / no inaction",S["table_cell"]),
-         Paragraph("BG 2.47, 3.19, 4.18",S["table_cell"]),
-         Paragraph("90%",S["table_cell"])],
-        [Paragraph("Nishkama Karma",S["table_cell"]),
-         Paragraph("Dedicated action without anxiety over results; 100% effort + 0% result-anxiety",S["table_cell"]),
-         Paragraph("BG 2.47, 3.19",S["table_cell"]),
-         Paragraph("95%",S["table_cell"])],
-        [Paragraph("Living in Present",S["table_cell"]),
-         Paragraph("Only present moment has action; past=grief, future=anxiety, present=yoga",S["table_cell"]),
-         Paragraph("BG 2.47",S["table_cell"]),
-         Paragraph("80%",S["table_cell"])],
-        [Paragraph("Swadharma",S["table_cell"]),
-         Paragraph("Own duty by nature/role/stage; better imperfect own duty than perfect others'",S["table_cell"]),
-         Paragraph("BG 3.35, 4.13",S["table_cell"]),
-         Paragraph("90%",S["table_cell"])],
-        [Paragraph("Dhyana Yoga",S["table_cell"]),
-         Paragraph("Meditation; mind = friend or enemy (BG 6.5); abhyasa + vairagya",S["table_cell"]),
-         Paragraph("BG 6.5, 6.35",S["table_cell"]),
-         Paragraph("85%",S["table_cell"])],
-        [Paragraph("Qty of Thoughts",S["table_cell"]),
-         Paragraph("Mind too restless; solution: abhyasa (practice) + vairagya (detachment)",S["table_cell"]),
-         Paragraph("BG 6.34-35",S["table_cell"]),
-         Paragraph("90%",S["table_cell"])],
-        [Paragraph("Quality of Thoughts",S["table_cell"]),
-         Paragraph("Tamas (dark) -> Rajas (restless) -> Sattva (clear); meditation upgrades quality",S["table_cell"]),
-         Paragraph("BG 17.16, 2.62-63",S["table_cell"]),
-         Paragraph("90%",S["table_cell"])],
-        [Paragraph("Direction of Thoughts",S["table_cell"]),
-         Paragraph("Bahirmukhi (outward) -> Antarmukhi (inward) -> toward God; pratyahara",S["table_cell"]),
-         Paragraph("BG 6.14, 2.58",S["table_cell"]),
-         Paragraph("90%",S["table_cell"])],
-        [Paragraph("Inner Silence",S["table_cell"]),
-         Paragraph("Samadhi: pure awareness, no subject-object division, boundless joy (BG 6.20-22)",S["table_cell"]),
-         Paragraph("BG 6.20-22",S["table_cell"]),
-         Paragraph("85%",S["table_cell"])],
-    ]
-    rt = Table(rev_data, colWidths=[3*cm, 7*cm, 3.5*cm, 3*cm])
-    rt.setStyle(TableStyle([
-        ("BACKGROUND",(0,0),(-1,0),TEAL),
-        ("BACKGROUND",(0,1),(-1,1),LIGHT_ORANGE),
-        ("BACKGROUND",(0,2),(-1,2),CREAM),
-        ("BACKGROUND",(0,3),(-1,3),LIGHT_ORANGE),
-        ("BACKGROUND",(0,4),(-1,4),CREAM),
-        ("BACKGROUND",(0,5),(-1,5),LIGHT_ORANGE),
-        ("BACKGROUND",(0,6),(-1,6),CREAM),
-        ("BACKGROUND",(0,7),(-1,7),LIGHT_ORANGE),
-        ("BACKGROUND",(0,8),(-1,8),CREAM),
-        ("BACKGROUND",(0,9),(-1,9),LIGHT_ORANGE),
-        ("GRID",(0,0),(-1,-1),0.5,HexColor("#80CBC4")),
-        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
-        ("LEFTPADDING",(0,0),(-1,-1),6),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-    ]))
-    story.append(rt)
-    story.append(Spacer(1, 0.4*cm))
-
-    # ALL 1.5 mark summary
-    story.append(Paragraph("📌  ALL LIKELY 1.5-MARK QUESTIONS AT A GLANCE — MODULE 2", S["subtopic"]))
-    all_short = [
-        ("What is Karma Yoga?", "Yoga of selfless action. Perform duty without attachment to results (BG 2.47). Three instructions: act, no claim on fruits, no excuse for inaction."),
-        ("What is Dhyana Yoga?", "Yoga of meditation. Systematic training of mind from restlessness to inner silence. Abhyasa + vairagya are the keys (BG 6.35)."),
-        ("What is Nishkama Karma?", "Nish = without, Kama = desire. Dedicated action without craving for results. 100% effort + 0% result-anxiety = peak performance + inner peace."),
-        ("What is Swadharma?", "One's own duty based on nature, role, stage of life. Better imperfect own duty than perfect others'. Authentic calling (BG 3.35)."),
-        ("What does living in the present mean?", "Full engagement in THIS moment — not past regrets or future anxieties. Only present contains action. Karma Yoga is always present-moment yoga."),
-        ("What is the role of intention in Karma Yoga?", "Intention (sankalpa) determines spiritual quality of action. Selfish intent = binding karma. Offering action to God without craving = liberating Karma Yoga."),
-        ("What is Dhyana Yoga / Define meditation in Gita context?", "Unbroken flow of attention toward Atman or God. Leads from dharana (concentration) through dhyana to samadhi (inner silence). BG 6.10-26."),
-        ("Name the two aspects of the Divine.", "Saguna Brahman (personal God with qualities — Krishna) and Nirguna Brahman (formless, attribute-less Absolute). Both lead to liberation."),
-        ("What is meant by Quantity, Quality, Direction of thoughts?", "Qty = mind thinks too many thoughts (solution: abhyasa); Quality = thoughts range from tamas to sattva (solution: meditation, satsanga); Direction = outward to inward to Divine (solution: pratyahara, focus on God)."),
-        ("What is Inner Silence?", "Samadhi — state of pure, boundless awareness beyond thought-activity. Transcendental joy. Observer merged with object. Described in BG 6.20-22 as the highest state."),
-    ]
-    for q, a in all_short:
-        story.append(colored_box([
-            Paragraph(f"<b>Q: {q}</b>", S["exam_q"]),
-            Paragraph(a, S["exam_a"]),
-        ], GRAY_BG, HexColor("#BDBDBD")))
-        story.append(Spacer(1, 3))
-
-    story.append(Spacer(1, 0.3*cm))
-    story.append(colored_box([
-        Paragraph("📖  STUDY TIPS FOR MODULE 2:", S["section_label"]),
-        Paragraph("TOP 3 most likely long questions: (1) Dhyana Yoga + Inner Silence 15-mark, "
-                  "(2) Karma Yoga + Swadharma 10-mark, (3) Compare three Yogas. "
-                  "Always remember BG 2.47 for any Karma Yoga question — it is THE most important verse. "
-                  "For Dhyana Yoga: remember BG 6.5 (mind = friend/enemy) and BG 6.35 (abhyasa + vairagya). "
-                  "Use modern examples: sports psychology for Karma Yoga; neuroscience for Dhyana Yoga. "
-                  "Structure long answers: Introduction + numbered sections + conclusion. "
-                  "The examiner wants to see you APPLY the concept to modern life — always add a practical dimension.", S["highlight_box"]),
-    ], LIGHT_ORANGE, DARK_SAFFRON))
-
-    # footer
-    story.append(Spacer(1, 0.4*cm))
-    story.append(HRFlowable(width="100%", thickness=2, color=SAFFRON))
-    story.append(Spacer(1, 0.2*cm))
-    footer_data = [[
-        Paragraph("<b>MODULE 2 COMPLETE</b> | AC-02-23 Message of Bhagavad Gita", S["note"]),
-        Paragraph("<b>Share Module 3 Syllabus for Bhakti Yoga + Gunatraya Vibhaga Yoga Notes!</b>",
-                  ParagraphStyle("fn", fontName="Helvetica-Bold", fontSize=9.5,
-                                 textColor=DARK_SAFFRON, alignment=TA_CENTER)),
-    ]]
-    ft = Table(footer_data, colWidths=[9*cm, 7.5*cm])
-    ft.setStyle(TableStyle([
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),4),
-    ]))
-    story.append(ft)
-
-    return story
-
-
-def main():
-    out = "Gita_Module2_ExamNotes.pdf"
-    doc = SimpleDocTemplate(
-        out, pagesize=A4,
-        rightMargin=1.8*cm, leftMargin=1.8*cm,
-        topMargin=1.5*cm, bottomMargin=1.5*cm,
-        title="Message of Bhagavad Gita — Module 2 Exam Notes",
-        author="AC-02-23 Study Guide",
-    )
-    styles = build_styles()
-    story  = build_content(styles)
-    doc.build(story)
-    print(f"PDF created: {out}")
-
-if __name__ == "__main__":
-    main()
-
-# python /home/claude/gita_module2_notes.py 
-
-
-
-
-
-
-
+from reportlab.lib.colors import HexColor, white
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, HRFlowable
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+
+DB=HexColor("#1a3a5c"); MB=HexColor("#2563a8"); LB=HexColor("#dbeafe")
+QBG=HexColor("#fef3c7"); ABG=HexColor("#f0f9ff"); PBG=HexColor("#ede9fe")
+GRY=HexColor("#cbd5e1"); TXT=HexColor("#1e293b"); GRN=HexColor("#166534")
+ACC=HexColor("#f59e0b"); W,H=A4
+
+doc=SimpleDocTemplate("HRM_Complete_Exam_Answers.pdf",pagesize=A4,
+    rightMargin=1.8*cm,leftMargin=1.8*cm,topMargin=2*cm,bottomMargin=2*cm)
+ss=getSampleStyleSheet()
+def PS(n,**k):
+    b=k.pop("parent","Normal"); return ParagraphStyle(n,parent=ss[b],**k)
+
+CTT=PS("ctt",fontSize=24,textColor=white,alignment=TA_CENTER,leading=32,fontName="Helvetica-Bold")
+CTS=PS("cts",fontSize=12,textColor=LB,alignment=TA_CENTER,leading=16)
+CTI=PS("cti",fontSize=9,textColor=HexColor("#94a3b8"),alignment=TA_CENTER,leading=13)
+MH=PS("mh",fontSize=15,textColor=white,alignment=TA_CENTER,leading=21,fontName="Helvetica-Bold")
+MS=PS("ms",fontSize=9,textColor=LB,alignment=TA_CENTER,leading=13)
+TPS=PS("tps",fontSize=11,textColor=white,fontName="Helvetica-Bold",leading=15,leftIndent=6)
+QL=PS("ql",fontSize=10,textColor=DB,fontName="Helvetica-Bold",leading=14)
+QT=PS("qt",fontSize=10,textColor=DB,leading=14,leftIndent=6)
+SHH=PS("shh",fontSize=11,textColor=MB,fontName="Helvetica-Bold",leading=15,spaceAfter=3)
+SSH=PS("ssh",fontSize=10,textColor=HexColor("#1d4ed8"),fontName="Helvetica-Bold",leading=14,spaceAfter=2)
+BOD=PS("bod",fontSize=9.5,textColor=TXT,leading=14,alignment=TA_JUSTIFY,spaceAfter=3)
+BUL=PS("bul",fontSize=9.5,textColor=TXT,leading=13,leftIndent=14,firstLineIndent=-10,spaceAfter=2)
+NTE=PS("nte",fontSize=8.5,textColor=GRN,leading=12,leftIndent=8,fontName="Helvetica-Oblique")
+KPP=PS("kpp",fontSize=9.5,textColor=DB,fontName="Helvetica-Bold",leading=13,leftIndent=4)
+TCI=PS("tci",fontSize=8.5,textColor=HexColor("#475569"),leading=12,leftIndent=4)
+TCL=PS("tcl",fontSize=9.5,textColor=TXT,leading=14)
+TOCM=PS("tocm",fontSize=11,textColor=DB,fontName="Helvetica-Bold",leading=18)
+
+st=[]
+def sp(h=7): return Spacer(1,h)
+def div(): return HRFlowable(width="100%",thickness=0.5,color=GRY,spaceAfter=4,spaceBefore=4)
+def B(t): return Paragraph(t,BOD)
+def BL(t): return Paragraph(f"• {t}",BUL)
+def SH(t): return Paragraph(t,SHH)
+def SSH2(t): return Paragraph(t,SSH)
+def KP(t): return Paragraph(t,KPP)
+def NOTE(t): return Paragraph(f"★  {t}",NTE)
+
+def banner(rows_data,bg=DB):
+    rows=[[Paragraph(t,s)] for t,s in rows_data]
+    tbl=Table(rows,colWidths=[W-3.6*cm])
+    tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),bg),
+        ("TOPPADDING",(0,0),(-1,-1),12),("BOTTOMPADDING",(0,0),(-1,-1),12),
+        ("LEFTPADDING",(0,0),(-1,-1),16),("RIGHTPADDING",(0,0),(-1,-1),16)]))
+    return tbl
+
+def qbox(num,text,marks,paper=""):
+    mc={1.5:HexColor("#10b981"),5:HexColor("#3b82f6"),10:HexColor("#8b5cf6"),15:HexColor("#ef4444")}.get(marks,MB)
+    mb_st=PS("mb2",fontSize=8,textColor=white,fontName="Helvetica-Bold",alignment=TA_CENTER)
+    pstr=f" [{paper}]" if paper else ""
+    rows=[[Paragraph(f"Q{num}{pstr}",QL),Paragraph(f"{marks} Marks",mb_st)],
+          [Paragraph(text,QT),""] ]
+    tbl=Table(rows,colWidths=[W-5.6*cm,1.6*cm])
+    tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),QBG),("BACKGROUND",(1,0),(1,0),mc),
+        ("SPAN",(0,1),(1,1)),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),("BOX",(0,0),(-1,-1),1,ACC)]))
+    return tbl
+
+def tbox(topic,subs):
+    t=f"<b>Topics:</b> {topic} | <b>Sub-topics:</b> {subs}"
+    tbl=Table([[Paragraph(t,TCI)]],colWidths=[W-3.6*cm])
+    tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),PBG),
+        ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),4),
+        ("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),
+        ("BOX",(0,0),(-1,-1),0.5,HexColor("#a78bfa"))]))
+    return tbl
+
+def abox(items):
+    tbl=Table([[items]],colWidths=[W-3.6*cm])
+    tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),ABG),
+        ("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),
+        ("BOX",(0,0),(-1,-1),1,MB)]))
+    return tbl
+
+def Q(num,qtext,marks,paper,topic,subs,ans_items):
+    st.append(qbox(num,qtext,marks,paper))
+    st.append(sp(4))
+
+    st.append(tbox(topic,subs))
+    st.append(sp(4))
+
+    for item in ans_items:
+        st.append(item)
+
+    st.append(sp(10))
+
+def mod_header(num,title,sub):
+    st.append(PageBreak())
+    st.append(banner([(f"MODULE {num} — {title}",MH),(sub,MS)]))
+    st.append(sp(10))
+
+def part_label(txt):
+    st.append(Paragraph(txt,PS("pl",fontSize=11,textColor=DB,fontName="Helvetica-Bold",alignment=TA_CENTER)))
+    st.append(div())
+
+# ═══════════════════════════════════════════════════
+# COVER
+# ═══════════════════════════════════════════════════
+st.append(sp(40))
+st.append(banner([
+    ("HUMAN RESOURCE MANAGEMENT",CTT),
+    ("OEC-CS-602 (I) / OEL-701 | B.Tech 6th/7th Semester",CTS),
+    ("ECE · ENC · EEIOT · CE · IT · CSE(AIML)",CTI),("",CTI),
+    ("COMPLETE EXAM ANSWER GUIDE",CTS),
+    ("Dec-2024  ·  May-2025  ·  May-2023  ·  May-2024",CTI),
+    ("All Part-A (1.5M) + All Part-B (5/10/15M) | Full Detail | Word Limits Maintained",CTI),
+]))
+st.append(sp(16))
+info=[["Papers","Dec 2024 (ECE 7th Sem) | May 2025 (VIth Sem) | May 2023 | May 2024"],
+      ["Coverage","All Part-A short questions + All Part-B detailed questions"],
+      ["Format","Question → Topic Info → Full Model Answer"],
+      ["Modules","Module 1: Foundations | Module 2: Recruitment & PMS | Module 3: Training & Compensation | Module 4: IR & Contemporary"]]
+it=Table(info,colWidths=[2.5*cm,W-6.1*cm])
+it.setStyle(TableStyle([("BACKGROUND",(0,0),(0,-1),DB),("TEXTCOLOR",(0,0),(0,-1),white),
+    ("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("BACKGROUND",(1,0),(1,-1),LB),
+    ("TEXTCOLOR",(1,0),(1,-1),DB),("FONTSIZE",(0,0),(-1,-1),8.5),
+    ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
+    ("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),
+    ("GRID",(0,0),(-1,-1),0.5,GRY)]))
+st.append(it)
+st.append(PageBreak())
+
+# ═══════════════════════════════════════════════════════════════════════
+# MODULE 1 — DEC 2024
+# ═══════════════════════════════════════════════════════════════════════
+st.append(banner([("MODULE 1 — HRM FOUNDATIONS",MH),("December 2024 | B.Tech ECE/ENC/EEIOT 7th Semester | Max Marks: 75",MS)]))
+st.append(sp(10))
+part_label("PART-A — Short Answer Questions (1.5 Marks Each)")
+
+Q("1(a)","Three primary roles of an HR manager",1.5,"Dec 2024","Topic 3: Roles of HR Manager (Mod 1)","Dave Ulrich 4-Role Model; Administrative, Operational, Strategic; Employee Champion",
+[SH("Three Primary Roles of an HR Manager"),
+B("Dave Ulrich's HR Role Model (1997) identifies the following three primary roles:"),
+BL("<b>Administrative Role:</b> Maintaining employee records, processing payroll, ensuring compliance with labour laws (Factories Act, PF Act, ESI Act, Minimum Wages Act), and managing routine HR documentation. This ensures smooth day-to-day HR functioning and legal protection for the organisation."),
+BL("<b>Operational Role:</b> Active management of core HR functions — recruitment and selection, training coordination, grievance handling, performance appraisal administration, and compensation management. The HR manager ensures these functions are executed consistently and effectively across all departments."),
+BL("<b>Strategic Role:</b> Acting as a strategic business partner to top management — aligning HR practices with long-term business strategy, participating in manpower planning for new ventures, driving talent management, succession planning, workforce planning, and spearheading organisational culture and change management."),
+NOTE("Ulrich's full model: Administrative Expert | Employee Champion | Change Agent | Strategic Partner. The three traditional roles map: Administrative=Admin Expert; Operational=Employee Champion; Strategic=Change Agent+Strategic Partner.")])
+
+Q("1(b)","Two features of HRIS",1.5,"Dec 2024","Topic 6: HRIS (Mod 1)","HRIS definition; Components: Payroll, Employee DB, ATS, LMS, Self-Service, HR Analytics, Compliance, Leave Management",
+[SH("Two Key Features of HRIS"),
+B("HRIS (Human Resource Information System) is an integrated software platform that stores, manages and processes all HR-related data. Two key features:"),
+BL("<b>Payroll Management:</b> HRIS fully automates the payroll cycle — calculating gross and net salaries, computing TDS, PF and ESI contributions, generating itemised payslips and processing direct bank transfers. This eliminates manual calculation errors, ensures 100% accuracy and guarantees on-time salary disbursement. Examples: SAP SuccessFactors, Workday, Darwinbox."),
+BL("<b>Employee Self-Service Portal:</b> A digital interface where employees and managers independently manage their own HR data — applying for leave, viewing payslips, updating personal information, submitting expense claims, and accessing HR policies — without HR intervention. This dramatically reduces administrative workload on HR and empowers employees with instant access to their own information."),
+NOTE("Other features: ATS (Applicant Tracking), LMS (Learning Management), Performance Management Module, Leave & Attendance Management, HR Analytics Dashboards, Compliance Management (auto-generates PF/ESI/TDS statutory reports).")])
+
+Q("1(c)","Two approaches to job design",1.5,"Dec 2024","Topic 5: Job Design (Mod 2)","Scientific Management (Taylor); Behavioural Approach (Herzberg, Hackman-Oldham); Socio-Technical Systems; Job Enrichment; Job Enlargement",
+[SH("Two Approaches to Job Design"),
+B("Job Design is the process of deciding on the content, duties, responsibilities and methods of a job to satisfy both organisational efficiency and individual employee motivation. Two major approaches:"),
+BL("<b>Scientific Management Approach (F.W. Taylor):</b> Jobs are broken into their smallest, most efficient units using time-and-motion studies. Each task is standardised into 'one best method.' Workers are paid piece-rate wages (output-linked pay). Goal: maximum productivity through specialisation and standardisation. Methods include Job Simplification. Limitation: creates monotony, boredom and low intrinsic satisfaction among employees."),
+BL("<b>Behavioural Approach (Herzberg's Two-Factor Theory + Hackman-Oldham Model):</b> Makes jobs psychologically meaningful and intrinsically motivating. Techniques: Job Enrichment (vertical expansion — adding higher responsibility, autonomy and decision-making authority, based on Herzberg's motivators: achievement, recognition, advancement), Job Enlargement (horizontal expansion — adding more tasks at the same level to reduce monotony), and Job Rotation. Hackman-Oldham's Job Characteristics Model: five core dimensions (Skill Variety, Task Identity, Task Significance, Autonomy, Feedback) → lead to psychological states → high performance and satisfaction."),
+NOTE("Third approach: Socio-Technical Systems (Trist & Bamforth) — balances technical system (machines, processes) with social system (people, relationships) in job design. Job Enrichment = vertical (more responsibility). Job Enlargement = horizontal (more tasks, same level). Job Rotation = move across jobs at same level.")])
+
+Q("1(d)","Importance of TNA",1.5,"Dec 2024","Topic 1: Training Process & TNA (Mod 3)","TNA definition; 3 levels: Organisational, Task, Individual; Methods; Importance: targeted training, cost saving, strategic alignment, correct method, ROI",
+[SH("Importance of Training Need Analysis (TNA)"),
+B("Training Need Analysis (TNA) is the systematic process of identifying the gap between employees' current skills and the skills required to meet performance standards and organisational goals. It is the critical diagnostic first step of the training process."),
+BL("<b>Ensures Targeted, Relevant Training:</b> TNA identifies precisely WHO needs training, in WHAT skills, and WHY — at three levels (Organisational: strategic needs; Task: job requirements; Individual: personal skill gaps). This prevents wasting resources on wrong employees or wrong content."),
+BL("<b>Saves Training Costs and Maximises ROI:</b> By pinpointing exact skill gaps, TNA ensures the budget is invested only in programmes addressing real deficiencies. Every training rupee is invested with surgical precision — maximising return on training investment."),
+BL("<b>Aligns Training with Business Strategy:</b> Organisational-level TNA links training directly to business goals — every training investment supports a strategic direction."),
+BL("<b>Identifies the Correct Training Method:</b> Different gaps need different methods — on-the-job coaching for technical skills, role play for interpersonal skills, simulation for complex procedures."),
+NOTE("TNA Analogy: Training without TNA is like a doctor prescribing medicine without diagnosis — the intervention may address the wrong problem entirely. Three TNA levels: Organisational → Task → Individual (remember: OTI).")])
+
+Q("1(e)","ADDIE in Kirkpatrick's model of training evaluation",1.5,"Dec 2024","Topics 3 & 4: ADDIE Model + Kirkpatrick (Mod 3)","ADDIE: Analysis, Design, Development, Implementation, Evaluation; Kirkpatrick's 4 levels; Connection at Evaluation phase",
+[SH("ADDIE and Kirkpatrick's Training Evaluation Model"),
+B("ADDIE is the most widely used Instructional Design framework. It stands for five sequential phases:"),
+BL("<b>A — Analysis:</b> TNA — identify learning needs, target audience, performance gaps and resources"),
+BL("<b>D — Design:</b> Write SMART objectives, select training methods, design course structure and assessments"),
+BL("<b>D — Development:</b> Create training materials — presentations, e-learning modules, case studies, videos"),
+BL("<b>I — Implementation:</b> Deliver the programme — manage trainers, schedules, venues and logistics"),
+BL("<b>E — Evaluation:</b> This phase directly uses Kirkpatrick's 4-Level Model:"),
+BL("Level 1 — Reaction: Did participants LIKE the training? (Post-training satisfaction surveys — immediately after)"),
+BL("Level 2 — Learning: Did they LEARN? (Pre/post tests, skill demonstrations — during and after training)"),
+BL("Level 3 — Behaviour: Are they APPLYING learning on the job? (Supervisor observation — 3-6 months after)"),
+BL("Level 4 — Results: Did training produce BUSINESS RESULTS? (Sales, quality, productivity KPIs — 6-12 months after)"),
+NOTE("ADDIE's 'E' phase = Kirkpatrick's evaluation framework. ADDIE provides the design structure; Kirkpatrick provides the measurement methodology. Phillips added Level 5 (ROI): [(Benefits − Cost) ÷ Cost] × 100.")])
+
+Q("1(f)","Difference between career planning and career development",1.5,"Dec 2024","Topic 5: Career Planning & Development (Mod 3)","Career Planning definition; Career Development definition; Comparison: who, focus, nature, output, horizon; Edgar Schein career anchors",
+[SH("Career Planning vs Career Development"),
+B("<b>Career Planning</b> is the deliberate, structured process by which an individual sets career goals and creates a roadmap to achieve them. It involves self-assessment (tools: SWOT, MBTI, career interest inventories), exploring options, setting SMART short-term (1-2 years) and long-term (5-10 years) goals, and identifying the specific steps needed — education, certifications, experiences, networking. It is primarily the INDIVIDUAL's responsibility and tends to be a periodic, goal-setting exercise."),
+B("<b>Career Development</b> is the ongoing, lifelong process of managing career growth through actual skill acquisition, learning and gaining experiences — both the individual's AND the organisation's responsibility. The organisation's role: career counselling, Individual Development Plans (IDPs), job rotation, mentoring programmes, training and succession planning."),
+BL("<b>Who:</b> Planning = primarily INDIVIDUAL | Development = INDIVIDUAL + ORGANISATION"),
+BL("<b>Nature:</b> Planning = periodic exercise | Development = continuous, lifelong"),
+BL("<b>Focus:</b> Planning = setting goals and roadmap | Development = acquiring skills and experiences"),
+BL("<b>Output:</b> Planning = career plan | Development = new competencies and progression"),
+NOTE("Career Planning asks WHERE do I want to go? Career Development asks WHAT do I need to do NOW to get there? Edgar Schein's 8 Career Anchors: Technical, Managerial, Security, Entrepreneurship, Service, Challenge, Lifestyle, Autonomy.")])
+
+Q("1(g)","Potential appraisal",1.5,"Dec 2024","Topic 6: Potential Appraisal (Mod 3)","PA definition; vs Performance Appraisal; What assessed: leadership, EQ, learning agility; Methods: Assessment Centres, Psychometric Tests, 360-degree; Link to Succession Planning",
+[SH("Potential Appraisal"),
+B("Potential Appraisal is the systematic evaluation of an employee's capability and likelihood of performing successfully in future, higher-level roles within the organisation. While Performance Appraisal is backward-looking (measuring HOW WELL the employee performs in their CURRENT role NOW), Potential Appraisal is forward-looking (predicting HOW FAR the employee can GO in the future — their capacity for growth, leadership and advancement)."),
+B("<b>What is assessed:</b> Leadership qualities, Learning agility (ability to learn/unlearn/relearn rapidly), Strategic thinking, Emotional Intelligence (EQ — self-awareness, empathy, self-regulation), Problem-solving under ambiguity, Communication and cross-functional influence, Resilience and adaptability, Innovation and creativity."),
+B("<b>Methods:</b> Assessment Centres (most accurate — multi-exercise evaluation over 1-2 days by trained assessors), Psychological Testing (MBTI, Big Five/OCEAN, 16PF, leadership assessments), 360-Degree Feedback (multi-source view), Development Centres (development-focused), and Performance History Analysis (consistent high performance predicts potential)."),
+NOTE("KEY distinction: Performance Appraisal = BACKWARD-looking (past performance). Potential Appraisal = FORWARD-looking (future capability). Potential Appraisal directly feeds into Succession Planning through the 9-Box Grid (Performance vs Potential matrix).")])
+
+Q("1(h)","Succession planning",1.5,"Dec 2024","Topic 6: Succession Planning (Mod 3)","Definition; Process: Identify critical roles, Identify HiPos (9-Box Grid), Assess readiness, Develop via IDPs, Monitor, Execute; Business continuity",
+[SH("Succession Planning"),
+B("Succession Planning is the proactive, strategic process of identifying and developing potential successors for key leadership and critical positions — ensuring business continuity when current incumbents retire, resign or are promoted. Goal: ensure the organisation is never caught without a capable, ready person for any critical role."),
+B("<b>Process:</b>"),
+BL("<b>Step 1 — Identify Critical Positions:</b> CEO, CFO, Head of R&D, Regional Directors, key technical experts — roles where sudden vacancy would severely disrupt operations"),
+BL("<b>Step 2 — Identify High-Potential Employees:</b> Through potential appraisals, performance history and manager nominations"),
+BL("<b>Step 3 — Assess Readiness (9-Box Grid):</b> Classify successors — Ready Now, Ready in 1-2 years, Ready in 3-5 years — using Performance vs Potential matrix"),
+BL("<b>Step 4 — Develop Successors:</b> Individual Development Plans (IDPs) with targeted training, job rotations, stretch assignments, mentoring by current incumbents, external leadership programmes"),
+BL("<b>Step 5 — Monitor and Review:</b> Annual updates as candidates progress or leave"),
+BL("<b>Step 6 — Execute:</b> Smooth transition when vacancy arises, with minimum organisational disruption"),
+NOTE("The 9-Box Grid (Performance on Y-axis, Potential on X-axis) classifies employees: Stars (high performance, high potential — top priority), Rough Diamonds (low performance, high potential — develop urgently), Productive Performers (high performance, low potential — reward and retain).")])
+
+Q("1(i)","The challenge faced in managing expatriates",1.5,"Dec 2024","Topic 5: IHRM — Expatriate Management (Mod 4)","Expatriate definition; Challenges: selection, cross-cultural adjustment, compensation complexity, family issues, repatriation; 30-50% failure rate",
+[SH("Challenges in Managing Expatriates"),
+B("An expatriate is an employee sent to work in another country for an extended assignment. Managing expatriates is one of the most complex and expensive IHRM functions. Key challenges:"),
+BL("<b>Selection Difficulty:</b> Finding employees with both technical competence AND cultural sensitivity, language ability, adaptability and family stability. Technical excellence alone is insufficient — many technically brilliant employees fail overseas due to cultural incompatibility."),
+BL("<b>Cross-Cultural Adjustment:</b> Adapting to a completely different language, social norms, business etiquette, food and lifestyle. Without structured cross-cultural training (Hofstede's 5 dimensions framework), expatriates experience culture shock that severely impairs professional effectiveness."),
+BL("<b>Compensation Complexity:</b> International packages must balance: base salary, Cost-of-Living Adjustment (COLA), housing allowance, children's education allowance, home leave allowance, hardship premium and tax equalisation — extremely complex to design and administer."),
+BL("<b>Family Issues:</b> Spousal career sacrifice (visa restrictions often prevent spouses from working), children's educational disruption, family social isolation in the host country. Family dissatisfaction is the leading cause of early repatriation."),
+BL("<b>Repatriation:</b> Returning home is equally challenging — reverse culture shock, underutilisation of new international skills, loss of status and autonomy, difficulty reintegrating — often leading to voluntary departure post-assignment."),
+NOTE("Expatriate failure rate WITHOUT proper support: 30-50%. Pre-departure cross-cultural training, on-assignment family support, and planned repatriation reduce failure significantly.")])
+
+Q("1(j)","Purpose of an HR audit",1.5,"Dec 2024","Topic 7: HR Audit (Mod 4)","HR Audit definition; Types: Compliance, Functional, Strategic, Cultural; Process; Purpose: legal compliance, gap identification, effectiveness, risk management",
+[SH("Purpose of an HR Audit"),
+B("HR Audit is a systematic, independent examination — a comprehensive health check — of all HR policies, practices, processes, records and compliance status. Just as a financial audit checks accounts, an HR Audit checks whether people-management practices are legally compliant, fair, efficient and strategically aligned with business goals."),
+B("<b>Key Purposes:</b>"),
+BL("<b>Ensure Legal Compliance:</b> Verify all statutory requirements are properly fulfilled — minimum wages, PF/ESI contributions, working hours, POSH Committee, employment contracts — avoiding legal penalties and prosecution"),
+BL("<b>Identify Policy-Practice Gaps:</b> Compare what the HR policy says should happen vs what actually happens — revealing discrepancies, inconsistencies and areas needing correction"),
+BL("<b>Assess HR Function Effectiveness:</b> Measure recruitment quality (time-to-hire, quality-of-hire), training ROI, appraisal completion rates, grievance resolution time"),
+BL("<b>Strategic Alignment Check:</b> Evaluate whether HR strategy supports business goals — talent pipeline adequacy for planned growth, leadership bench strength for succession"),
+BL("<b>Risk Management:</b> Proactively identify HR risks — legal exposure, talent shortages, pay equity violations, data privacy gaps — before they become serious crises"),
+NOTE("Types: Compliance Audit (labour law adherence) | Functional Audit (HR process effectiveness) | Strategic Audit (alignment with business goals) | Cultural Audit (culture, engagement, D&I). Process: Scope → Plan → Collect Data → Analyse → Report → Implement → Track.")])
+
+st.append(sp(8))
+part_label("PART-B — Detailed Answer Questions")
+
+Q("2(a)","Explain the scope of HRM. Discuss the different functional areas covered under HRM in modern organisations.",10,"Dec 2024","Topic 1: HRM Concept, Evolution & Scope (Mod 1)","HRM definition (Flippo, Dessler); 7 functional areas in depth; Modern additions: HR Analytics, D&I, IHRM, KM, CSR, Mental Health; Nature of HRM",
+[SH("Scope of HRM and Functional Areas"),
+B("Human Resource Management (HRM) is the process of recruiting, selecting, training, developing, compensating and retaining employees to achieve organisational goals. Edwin Flippo: 'HRM is the planning, organising, directing and controlling of procurement, development, compensation, integration, maintenance and separation of human resources to the end that individual, organisational and social objectives are accomplished.' The scope of HRM is extraordinary — covering every activity related to managing people from hire to retire."),
+SSH2("1. HR PLANNING"),
+B("Systematically forecasting future manpower needs — ensuring the right number of people with the right skills are available at the right time and place. Process: analyse organisational goals → audit current HR (skills inventory) → forecast demand (using Managerial Judgment, Delphi, Trend Analysis, Regression, Work Load Analysis, Ratio Analysis) → forecast supply → identify HR gap (surplus/deficit) → formulate action plan → implement → monitor and control. HR Planning is the strategic foundation for all other HR activities. Without it, organisations face costly emergency hiring or expensive redundancies."),
+SSH2("2. JOB ANALYSIS AND JOB DESIGN"),
+B("Job Analysis systematically studies each job — producing Job Description (JD: duties, responsibilities, working conditions) and Job Specification (JS: qualifications, skills, experience required). These are the foundation of recruitment, selection, training and compensation. Job Design organises tasks into roles using techniques: Job Simplification (Taylor — efficiency), Job Rotation (multi-skilling), Job Enlargement (horizontal — more tasks), and Job Enrichment (vertical — more responsibility, based on Herzberg's Two-Factor Theory). Hackman-Oldham's Job Characteristics Model identifies five core dimensions (Skill Variety, Task Identity, Task Significance, Autonomy, Feedback) that create intrinsic motivation."),
+SSH2("3. RECRUITMENT AND SELECTION"),
+B("Recruitment attracts candidates through internal (promotions, transfers, referrals, internal postings, recalls) and external sources (job portals, campus recruitment, agencies, walk-ins, social media, AI-based ATS tools). Selection eliminates unsuitable candidates through: preliminary screening, employment tests (intelligence, aptitude, achievement, personality, psychometric), employment interviews (structured, behavioural/STAR, panel, stress), reference and background checks, medical examination, final selection decision, job offer, and employment contract. Balanced mix of internal and external sourcing is best practice."),
+SSH2("4. TRAINING AND DEVELOPMENT"),
+B("Training improves skills for the current job; Development prepares employees for future roles. Process: TNA (three levels — Organisational, Task, Individual) → SMART objectives → ADDIE-based design (selecting On-the-Job methods: coaching, mentoring, job rotation, apprenticeship; and Off-the-Job methods: case study, role play, simulation, e-learning, vestibule training) → implementation → evaluation (Kirkpatrick's 4-Level Model: Reaction, Learning, Behaviour, Results) → follow-up and transfer coaching."),
+SSH2("5. PERFORMANCE MANAGEMENT"),
+B("Continuous cycle of goal-setting (SMART/OKRs), monitoring, formal appraisal, feedback, rewards and new goals. Traditional methods: Graphic Rating Scale, Ranking, Paired Comparison, Forced Distribution (Bell Curve — Jack Welch at GE), Critical Incident, Essay, Checklist, MBO (Peter Drucker, 1954). Modern methods: 360-Degree Feedback (most comprehensive), Assessment Centres (most accurate for managerial roles), BARS, Balanced Scorecard (Kaplan & Norton — 4 perspectives: Financial, Customer, Internal Process, Learning & Growth), OKRs (Google/Intel). Employee counselling (directive, non-directive, participative) is integral to PMS — identifying root causes of underperformance and creating improvement plans."),
+SSH2("6. COMPENSATION AND BENEFITS MANAGEMENT"),
+B("Designing fair, competitive pay structures to attract, motivate and retain talent. Components: Direct Financial (base pay, variable pay, allowances — HRA/DA/TA, ESOPs, profit-sharing), Indirect Financial benefits (legally required: PF 12%+12%, ESI 3.25%+0.75%, gratuity, maternity benefit, bonus 8.33-20%; voluntary: health insurance, company housing, gym, childcare), Non-Financial (recognition, job enrichment, flexible work, career development). Determinants: job evaluation (Point Method most accurate), labour market conditions, ability to pay, cost of living, productivity, trade union strength, government regulations (Minimum Wages Act, Bonus Act, Equal Remuneration Act), and compensation strategy (pay-lead/match/lag)."),
+SSH2("7. EMPLOYEE RELATIONS AND WELFARE"),
+B("Employee Relations: grievance handling (6-step procedure: informal → written → senior management → grievance committee → arbitration → labour court), disciplinary procedures, dispute resolution (Works Committee, Conciliation, Voluntary Arbitration, Labour Court, Industrial Tribunal, National Tribunal — under Industrial Disputes Act 1947), collective bargaining. Welfare: Statutory (Factories Act 1948 — canteen/crèche/first aid; ESI Act 1948; PF Act 1952; Maternity Benefit Act 1961 amended 2017 — 26 weeks; Gratuity Act 1972 — formula: 15×Salary×Years÷26; Bonus Act; Workmen's Compensation Act) and Non-Statutory (housing, extended health insurance, recreation, education support, EAPs, flexible work)."),
+SSH2("MODERN ADDITIONS TO HRM SCOPE"),
+BL("<b>HR Analytics and Digital HR:</b> HRIS platforms (SAP SuccessFactors, Workday, Darwinbox), predictive attrition modelling, AI-powered recruitment, engagement analytics — data-driven, evidence-based HR decision-making"),
+BL("<b>Diversity and Inclusion (D&I):</b> Building genuinely inclusive workplaces across gender, generation, culture and ability — proven to enhance innovation, creativity and decision quality"),
+BL("<b>International HRM:</b> Managing PCNs, HCNs and TCNs across borders — cross-cultural management (Hofstede's 5 dimensions), expatriate management, international compensation, multi-jurisdiction legal compliance"),
+BL("<b>Knowledge Management:</b> SECI Model (Nonaka & Takeuchi) — capturing, sharing and retaining organisational intellectual capital using communities of practice, knowledge transfer workshops and KM platforms"),
+BL("<b>Corporate Social Responsibility (CSR):</b> Carroll's Pyramid — Economic → Legal → Ethical → Philanthropic. India: Section 135, Companies Act 2013 mandates 2% of net profit for eligible companies"),
+BL("<b>Employee Mental Health:</b> EAPs, flexible work, wellness allowances, mental health days, psychological safety cultures — increasingly essential in the digital, post-COVID workplace"),
+B("HRM has evolved from an administrative cost centre to a core strategic driver of competitive advantage. Modern HRM is simultaneously a legal compliance function, an operational service function, a talent development function and a strategic partnership function — making it one of the most multidimensional disciplines in any organisation."),
+NOTE("Key theorists: Edwin Flippo (HRM definition) | Elton Mayo (Hawthorne Studies — Human Relations Era) | Dave Ulrich (Strategic Partner, 1997) | Barney (Resource-Based View, 1991) | Peter Drucker (MBO) | Kaplan & Norton (BSC) | Nonaka & Takeuchi (SECI/KM).")])
+
+Q("2(b)","Discuss the major challenges faced by HR professionals in the digital era.",5,"Dec 2024","Topic 4: Challenges to HR Professionals (Mod 1)","Digital Transformation; Talent War; Remote/Hybrid workforce; Mental Health & Burnout; Data Privacy & Ethical AI; Continuous Learning; DEI; Legal Compliance",
+[SH("Major Challenges for HR Professionals in the Digital Era"),
+SSH2("1. Digital Transformation and Technology Adoption"),
+B("Rapid adoption of HRIS, AI-based recruitment tools, HR analytics, chatbots, remote collaboration platforms (Slack, Teams, Zoom) requires HR to become genuinely digitally literate. The challenge is not merely buying new technology — it is managing the cultural and behavioural transformation that comes with it: overcoming employee resistance, preventing digital exclusion, continuously updating HR's own technology skills as platforms evolve, and ensuring AI-based decisions are transparent and bias-free."),
+SSH2("2. Talent War — Attraction and Retention"),
+B("Demand for digital skills (AI/ML, data science, cybersecurity, cloud architecture) vastly exceeds supply. HR must design compelling employer brands, competitive total rewards packages (ESOPs, flexible benefits, remote work), and sophisticated engagement strategies to attract scarce talent and retain top performers who constantly receive competing offers."),
+SSH2("3. Managing Remote and Hybrid Workforces"),
+B("Post-COVID remote and hybrid models require entirely new HR policies: output-based performance evaluation (replacing time-based monitoring), virtual onboarding creating genuine belonging, digital culture-building, legal compliance for employees working across state and country boundaries, and equitable access to development opportunities for remote employees."),
+SSH2("4. Employee Mental Health and Digital Burnout"),
+B("Always-on connectivity, blurred work-life boundaries and video-call fatigue have created a mental health crisis. HR must proactively implement EAPs, mental health days, no-meeting time blocks, wellness allowances and psychological safety cultures — normalising mental health conversations across the organisation."),
+SSH2("5. Data Privacy and Ethical AI"),
+B("HR collects vast sensitive employee data. Ensuring GDPR/PDPA compliance is critical. AI hiring tools can perpetuate algorithmic bias — systematically disadvantaging women, minorities or non-traditional candidates. HR must audit AI tools for bias, ensure human oversight in automated decisions, and maintain transparent, explainable hiring practices."),
+SSH2("6. Building Continuous Learning Culture"),
+B("Job requirements change faster than ever. HR must build genuine learning cultures through micro-learning, MOOCs, Communities of Practice, cross-functional projects and upskilling/reskilling programmes — a complex cultural transformation, not just a training logistics challenge."),
+NOTE("Key frameworks: Dave Ulrich's Strategic Partner role | HR Analytics | Kirkpatrick Evaluation | HRIS platforms: SAP SuccessFactors, Workday | Ethical AI frameworks | GDPR/PDPA compliance. Digital era demands HR become tech-savvy, data-driven and empathetic — simultaneously.")])
+
+Q("3","Discuss the various recruitment sources, including internal and external sources, and their advantages and disadvantages.",15,"Dec 2024","Topic 1: Recruitment Sources (Mod 2)","Recruitment definition (Flippo); Positive vs Negative process; Internal: 6 types; External: 8 types; Advantages & Disadvantages of each; Balanced strategy; Modern trends",
+[SH("Recruitment Sources — Internal and External"),
+B("Recruitment is the process of searching for prospective employees and stimulating them to apply for jobs. Edwin Flippo: 'Recruitment is the process of searching for prospective employees and stimulating them to apply for jobs in the organisation.' It is a POSITIVE process — attracting as many qualified candidates as possible. Recruitment INVITES; Selection ELIMINATES."),
+SSH2("INTERNAL SOURCES"),
+KP("1. Promotions"),
+B("Moving existing employees to higher-level positions with greater responsibility, authority and pay. Most motivating form of internal recruitment — signals the organisation rewards performance and loyalty. Example: Senior Analyst promoted to Manager when the Manager resigns. Creates a ripple of motivation across the workforce as employees see concrete evidence that hard work leads to advancement."),
+KP("2. Transfers"),
+B("Moving employees between departments, functions or geographical locations at the same level of responsibility and pay. Fills vacancies in understaffed areas while relieving surplus in overstaffed ones. Also provides employees with cross-functional exposure and resolves interpersonal conflicts by separating conflicting team members."),
+KP("3. Employee Referrals"),
+B("Existing employees recommend suitable candidates from their professional and personal networks. Financial incentives offered to employees whose referrals are successfully hired and complete probation. Referred candidates show higher cultural fit, faster productivity ramp-up and significantly better retention — because the referring employee has essentially pre-screened them for cultural fit."),
+KP("4. Internal Job Postings"),
+B("Vacancies formally announced on company intranet, HR portals or notice boards — allowing interested, qualified employees to voluntarily apply. Enables career mobility within the organisation. Employees who might not be considered for promotion by their immediate manager can proactively express interest in suitable roles across the organisation."),
+KP("5. Job Rotation (as source)"),
+B("Employees rotated across departments develop multi-functional skills qualifying them for different vacancies. Job rotation simultaneously serves as development and internal pipeline building."),
+KP("6. Recalls from Layoffs"),
+B("Previously laid-off employees with strong performance records recalled when business recovers. Require minimal re-onboarding — already know culture, systems, processes and colleagues."),
+SSH2("ADVANTAGES OF INTERNAL RECRUITMENT"),
+BL("Cost-effective — no advertising, no agency fees, lower onboarding costs, faster process"),
+BL("Reduced risk — organisation knows employee's performance history, strengths, cultural fit"),
+BL("Boosts morale and retention — employees see performance rewarded, reducing voluntary turnover"),
+BL("No cultural onboarding — internal candidates already understand values, norms and systems"),
+BL("Supports career development — creates visible, credible career paths improving long-term engagement"),
+SSH2("DISADVANTAGES OF INTERNAL RECRUITMENT"),
+BL("Limited talent pool — can only choose from existing employees"),
+BL("No fresh ideas — risk of organisational insularity and stagnation"),
+BL("Internal politics — promotion decisions can create jealousy and resentment"),
+BL("Chain vacancies — promoting one employee creates another vacancy elsewhere"),
+BL("Perpetuates existing culture — problematic when change or new direction is needed"),
+SSH2("EXTERNAL SOURCES"),
+KP("1. Job Portals and Online Advertising"),
+B("Naukri.com, LinkedIn, Indeed, Monster, Shine.com — massive instant reach to active job seekers. AI-powered ATS auto-screens thousands of resumes using keyword matching. LinkedIn additionally enables passive candidate sourcing — approaching talented candidates who are employed but potentially open to better opportunities."),
+KP("2. Campus Recruitment"),
+B("Visiting universities, IITs, IIMs, engineering colleges, management institutes to hire fresh graduates through pre-placement offers and on-campus drives. Brings young, technically current, trainable talent with high energy and learning potential. TCS, Infosys, Wipro, HCL hire tens of thousands annually through campus drives."),
+KP("3. Recruitment Agencies and Executive Search"),
+B("Placement agencies (TeamLease, Adecco, Randstad, Ma Foi) pre-screen and match candidates with employer requirements. Executive search firms (Michael Page, Spencer Stuart) proactively identify and approach senior leaders. Save employer time significantly. Limitation: expensive — agencies charge 8-15% of annual CTC as fee."),
+KP("4. Walk-in Interviews"),
+B("Candidates publicly invited to visit the organisation on a specified date for direct application and immediate interviews. Effective for mass hiring of sales executives, call centre agents, factory workers and data entry operators. Cost-effective and accessible."),
+KP("5. Social Media Recruiting"),
+B("LinkedIn for professional recruitment and passive candidate outreach. Instagram, Twitter for employer branding and reaching younger candidates. Social media reaches passive candidates — the largest and often most talented segment of the workforce who are employed but open to opportunities."),
+KP("6. AI-Based Recruitment Tools"),
+B("ATS for automated resume screening, chatbots (HireVue, Mya) for initial interviews, video AI for expression and tone analysis, predictive analytics identifying which sourcing channels produce the best long-term performers. Dramatically reduces time-to-hire and cost-per-hire for high-volume positions."),
+KP("7. Labour Contractors"),
+B("Contractual workers for seasonal, project-based or temporary needs — manufacturing, construction, hospitality, agriculture. Provides workforce flexibility without long-term employment commitments."),
+KP("8. Employee Referrals (External Extension)"),
+B("Alumni networks, former employees, clients and business partners who recommend qualified candidates. Alumni are a particularly valuable external source — they know the culture and can pre-screen accurately."),
+SSH2("ADVANTAGES OF EXTERNAL RECRUITMENT"),
+BL("Fresh talent and new ideas — innovative thinking, diverse perspectives, industry best practices"),
+BL("Wider choice — access to entire job market, not just existing workforce"),
+BL("Specialised skills — critical for expertise unavailable internally"),
+BL("Supports diversity — enables conscious recruitment for gender, cultural and background targets"),
+BL("Supports rapid growth — essential for filling large numbers of new positions quickly"),
+SSH2("DISADVANTAGES OF EXTERNAL RECRUITMENT"),
+BL("Expensive — advertising costs, agency fees, background verification, longer onboarding"),
+BL("Time-consuming — sourcing, screening, interviews, offer negotiation, notice period"),
+BL("Higher risk of bad hire — less known about candidate vs internal employee"),
+BL("Longer productivity ramp-up — needs time to understand culture, systems, processes"),
+BL("May demotivate internal employees who felt qualified for the role"),
+SSH2("BALANCED RECRUITMENT STRATEGY"),
+B("Best-practice organisations use a deliberate mix: internal-first policy (post vacancies internally before external search), then external for specialised skills, senior leadership requiring fresh perspectives, and diversity targets. Modern trends: Employer Branding (being known as a great place to work organically attracts applicants), Gig Economy hiring (Upwork, Fiverr for project-based talent), and AI-driven passive candidate sourcing. The art is matching the source to the strategic context of each vacancy."),
+NOTE("Flippo's Recruitment definition. POSITIVE process (attract many) vs Selection's NEGATIVE process (eliminate unsuitable). Best balanced strategy: internal for culture-fit and succession; external for fresh skills, diversity and rapid growth.")])
+
+Q("4","Define a performance management system. Explain the different methods of performance appraisal. Also, discuss the importance of counselling in the performance management process.",15,"Dec 2024","Topic 7: PMS (Mod 2)","PMS definition & cycle; Traditional Methods (8); Modern Methods (6); Employee Counselling: types (Directive, Non-Directive, Participative); Importance of counselling (6 reasons)",
+[SH("Performance Management System, Appraisal Methods and Counselling"),
+SSH2("DEFINITION OF PMS"),
+B("A Performance Management System (PMS) is a continuous, integrated process of: setting individual/team goals aligned with organisational strategy, monitoring performance throughout the period, formally appraising results, providing feedback and coaching, linking performance to rewards/development, and planning new goals for the next cycle. PMS = ongoing management cycle, NOT a one-time annual exercise. PMS Cycle: Goal Setting (SMART/OKRs) → Monitoring → Appraisal → Feedback & Coaching → Rewards/Development → New Goals."),
+SSH2("TRADITIONAL APPRAISAL METHODS"),
+KP("1. Graphic Rating Scale"),
+B("Most widely used. Rates traits (quality, quantity, initiative, teamwork) on a 1-5 scale. Simple, inexpensive, comparable. Limitations: halo effect (one positive inflates all), leniency bias (everyone high), strictness bias, central tendency (everyone middle), recency bias."),
+KP("2. Ranking Method"),
+B("Employees ordered best to worst. Simple, fast. Limitations: no criteria, no degree information, demoralising for lower-ranked, impractical for large groups."),
+KP("3. Paired Comparison"),
+B("Each employee compared one-on-one with every other. Winner of most comparisons ranks highest. Systematic but mathematically impractical: n(n-1)/2 comparisons needed (20 employees = 190 comparisons)."),
+KP("4. Forced Distribution / Bell Curve (Jack Welch, GE)"),
+B("Employees forced into preset percentages: top 20%, middle 70%, bottom 10%. Prevents leniency bias. Limitations: unfair in high-performing teams, destroys team cohesion, creates destructive internal competition."),
+KP("5. Critical Incident Method"),
+B("Year-round log of specific notable positive/negative incidents. More objective, evidence-based. Limitations: time-consuming record-keeping, recency bias if not maintained consistently."),
+KP("6. Essay / Narrative Method"),
+B("Manager writes free-form descriptive evaluation. Comprehensive and nuanced. Limitations: subjective, time-consuming, uncomparable across employees."),
+KP("7. Checklist Method"),
+B("Behavioural statements marked YES/NO. Simple and quick. Limitations: no degree captured, interpretation varies."),
+KP("8. MBO — Management by Objectives (Peter Drucker, 1954)"),
+B("Manager and employee JOINTLY set SMART goals at period start. Performance evaluated against mutually agreed targets — not subjective traits. High employee involvement creates ownership and commitment. Most widely used modern-traditional method."),
+SSH2("MODERN APPRAISAL METHODS"),
+KP("9. 360-Degree Feedback"),
+B("Multi-source feedback: Self + Superior + Subordinates + Peers + Customers. Most comprehensive, reduces single-rater bias, captures interpersonal and leadership competencies. Requires high-trust culture for honest feedback."),
+KP("10. Assessment Centres"),
+B("Multi-exercise evaluation (in-basket, group discussion, role play, presentations, psychometric tests) over 1-2 days by multiple trained assessors. Most scientifically accurate for managerial potential. Expensive — used for senior selection and HiPo development."),
+KP("11. BARS — Behaviourally Anchored Rating Scales"),
+B("Specific behavioural examples anchor each rating point — making ratings objective and unambiguous. Combines rating scale structure with critical incident specificity. Expensive to develop."),
+KP("12. Balanced Scorecard (Kaplan & Norton, 1992)"),
+B("4-perspective measurement: Financial, Customer, Internal Business Processes, Learning & Growth. Holistic, strategically aligned. Used for organisational and senior management evaluation."),
+KP("13. OKRs — Objectives and Key Results"),
+B("3-5 ambitious Objectives + 3-5 measurable Key Results each. Quarterly, transparent across organisation, aspirational (70% = excellent). Used by Google, Intel, Microsoft. Promotes radical transparency and alignment."),
+SSH2("IMPORTANCE OF COUNSELLING IN PERFORMANCE MANAGEMENT"),
+B("Employee Counselling is a confidential, structured, supportive conversation between manager/HR and employee — aimed at understanding performance gaps, identifying root causes, and creating improvement plans. Three types:"),
+BL("<b>Directive Counselling:</b> Manager identifies problem and prescribes specific corrective actions. Manager-led. Best for clear performance violations."),
+BL("<b>Non-Directive Counselling:</b> Employee talks freely, reflects, identifies own solutions. Counsellor listens and guides without imposing. Best for personal difficulties and emotional issues."),
+BL("<b>Participative / Eclectic Counselling:</b> Both jointly analyse issues and agree on improvement plan. Most effective and widely used — balances guidance with employee ownership."),
+B("<b>Importance of Counselling in PMS:</b>"),
+BL("<b>Diagnoses Root Causes:</b> Poor performance may stem from skill gap, personal problem, unclear goals, inadequate tools, management failure — counselling identifies the true cause before prescribing solutions"),
+BL("<b>Creates Concrete Improvement Plans:</b> Produces specific, time-bound action steps — training, mentoring, resource allocation — giving a clear path to improved performance"),
+BL("<b>Prevents Escalation:</b> Early counselling resolves issues before they become formal disciplinary proceedings, terminations or legal disputes"),
+BL("<b>Boosts Morale:</b> Employees who feel heard and supported are more motivated to improve — counselling signals the organisation invests in employee success"),
+BL("<b>Reduces Attrition:</b> Many employees leave because they feel unsupported. Regular counselling creates psychological safety and belonging that powerfully reduces voluntary turnover"),
+BL("<b>Creates Documentation:</b> Formal record of performance discussions essential for HR decisions and legal protection"),
+NOTE("Peter Drucker (MBO, 1954) | Kaplan & Norton (BSC, 1992) | Jack Welch at GE (Forced Distribution) | Google/Intel (OKRs). Most comprehensive = 360-degree. Most accurate for managerial assessment = Assessment Centres.")])
+
+Q("5","Define employee compensation. Discuss the factors determining employee compensation. Analyze the role of ESOPs and profit-sharing plans in attracting and retaining talent.",15,"Dec 2024","Topic 7: Employee Compensation (Mod 3)","Compensation definition; Components; 9 determinants in depth; ESOPs: vesting schedule, golden handcuffs, attraction and retention; Profit Sharing: collective ownership; New trends: Total Rewards",
+[SH("Employee Compensation — Definition, Determinants, ESOPs and Profit Sharing"),
+SSH2("DEFINITION"),
+B("Employee Compensation is the total of all rewards — financial and non-financial — provided to employees in exchange for their services. Milkovich and Newman: 'Compensation refers to all forms of financial returns and tangible services and benefits employees receive as part of an employment relationship.' Components: (1) Direct Financial: base pay, variable pay, allowances (HRA/DA/TA/LTA), ESOPs, profit-sharing; (2) Indirect Financial benefits: legally required (PF 12%+12%, ESI 3.25%+0.75%, gratuity, maternity, bonus) and voluntary (health insurance, housing, gym, childcare, EAPs); (3) Non-Financial: recognition, job enrichment, flexible work, career development, positive culture."),
+SSH2("FACTORS DETERMINING EMPLOYEE COMPENSATION"),
+KP("1. Job Requirements — Job Evaluation"),
+B("Most important internal determinant. Job Evaluation methods (Ranking, Classification, Factor Comparison, Point Method — most accurate) systematically determine relative worth of each job based on skill, effort, responsibility and working conditions. More complex, responsible jobs command higher pay — objectively justified rather than based on personal negotiating power."),
+KP("2. Labour Market Conditions — Supply and Demand"),
+B("Scarce skills (AI/ML engineers, cybersecurity specialists, data scientists) command premium salaries. HR conducts regular salary surveys (Mercer, Aon Hewitt, Naukri Salary Reports) to benchmark compensation. Three strategies: Pay-Lead (above market — attracts best talent), Pay-Match (at market — competitive), Pay-Lag (below market — costs least but highest talent risk)."),
+KP("3. Organisational Ability to Pay"),
+B("Company's financial health determines capacity for competitive compensation. Profitable MNCs and funded startups can offer substantially higher packages compared to small organisations or non-profits. Pay structures must be financially sustainable."),
+KP("4. Cost of Living"),
+B("Pay must maintain real purchasing power against inflation. Dearness Allowance (DA) in government is linked to Consumer Price Index (CPI). City Compensatory Allowance (CCA) is paid in high-cost cities (Mumbai, Bengaluru, Delhi)."),
+KP("5. Employee Productivity and Performance"),
+B("Performance-linked variable pay (bonuses, commissions, merit increments) directly ties reward to contribution. Differentiated pay — high performers receiving 3-5x the variable pay of average performers — motivates excellence and creates performance culture."),
+KP("6. Trade Union Strength"),
+B("Powerful unions negotiate wages through collective bargaining. Unionised industries (steel, automobiles, public sector banking) tend to have higher wages, better benefits and stronger job security than comparable non-unionised sectors."),
+KP("7. Government Regulations"),
+B("Minimum Wages Act 1948, Payment of Bonus Act 1965 (8.33%-20%), EPF Act 1952 (12%+12%), ESI Act 1948 (3.25%+0.75%), Payment of Gratuity Act 1972 (15×Salary×Years÷26), Equal Remuneration Act 1976 (equal pay for equal work), and new Labour Codes — all set the legal floor and structure of compensation."),
+KP("8. Compensation Strategy"),
+B("Organisation's deliberate market positioning: Pay-Lead (above market — best talent, highest cost), Pay-Match (at market — balanced), Pay-Lag (below market — cost-saving but talent risk). Must align with overall HR and business strategy."),
+KP("9. Pay Equity"),
+B("Internal equity (similar jobs paid similarly), External equity (pay competitive with market), Individual equity (differences justified only by performance, experience, seniority — not gender, caste or religion). Equal Remuneration Act 1976 mandates equal pay for equal work regardless of gender."),
+SSH2("ROLE OF ESOPs"),
+B("Employee Stock Ownership Plans (ESOPs) grant employees the right to purchase company shares at a predetermined exercise price — below market price — at a future date."),
+BL("<b>Attracting Talent:</b> Startups and growth companies use ESOPs when unable to match large MNC cash salaries — offering a share in future value creation. Early Infosys, Flipkart, Swiggy, Zomato employees became multi-millionaires through ESOPs at IPO or acquisition."),
+BL("<b>Retaining Talent (Golden Handcuffs):</b> Vesting schedules (e.g., 4-year vesting with 1-year cliff: 25% vest at 1 year, remainder monthly over 3 years) create powerful financial incentives to stay. An employee with Rs 50 lakh in unvested options cannot afford to resign — the unvested stock acts as 'golden handcuffs.'"),
+BL("<b>Alignment:</b> ESOP holders want the company's share price to rise — they make decisions that create long-term organisational value, directly aligning individual financial interests with company success."),
+SSH2("ROLE OF PROFIT SHARING"),
+BL("<b>Creates Collective Ownership:</b> When employees share in profits, they feel personally responsible for organisational success — motivating cost-consciousness, innovation and collaboration across all levels"),
+BL("<b>Improves Teamwork:</b> Collective reward discourages information hoarding and departmental silos, encouraging genuine cross-functional collaboration"),
+BL("<b>Retention Tool:</b> Deferred profit-sharing plans (accumulating in retirement accounts) create long-term financial incentives to stay"),
+BL("<b>Motivates Even in Low-Cash Periods:</b> When base salaries cannot be increased, profit-sharing adjustment reflects reality — building long-term trust"),
+B("A strategic compensation package combining competitive base pay, performance-linked variable pay, legally compliant benefits, ESOPs and profit-sharing creates a Total Rewards proposition that positions the organisation as an employer of choice — attracting, motivating and retaining outstanding talent."),
+NOTE("Key laws: Minimum Wages Act 1948 | Bonus Act 1965 (8.33-20%) | EPF Act 1952 (12%+12%) | ESI Act 1948 (3.25%+0.75%) | Gratuity Act 1972 (15×Salary×Years÷26) | Equal Remuneration Act 1976. ESOP vesting example: 4-year cliff-based. Modern Total Rewards = Pay + Benefits + Learning & Development + Work Environment + Work-Life Balance.")])
+
+Q("6","Explain the different employee welfare measures, such as statutory and non-statutory welfare. Discuss its significance in improving employee satisfaction and productivity.",15,"Dec 2024","Topic 3: Employee Welfare (Mod 4)","Welfare definition (Labour Investigation Committee); Statutory: 8 major acts with provisions; Non-Statutory: 7 categories; Significance: 7 points",
+[SH("Employee Welfare — Statutory and Non-Statutory Measures"),
+SSH2("DEFINITION"),
+B("Employee Welfare refers to all services, facilities and amenities provided to workers — beyond wages — to improve working and living conditions, health, safety, economic security and social well-being. Labour Investigation Committee: 'welfare refers to such services, facilities and amenities as may be established in or in the vicinity of undertakings to enable persons employed to perform their work in healthy and congenial surroundings and to provide them with amenities conducive to good health and high morale.'"),
+SSH2("A. STATUTORY WELFARE MEASURES (Legally Mandatory)"),
+KP("1. Factories Act, 1948"),
+B("Canteen (250+ workers), Restrooms and Washing Facilities, Crèche (30+ women workers — for children under 6 years), First Aid Boxes (every 150 workers), Adequate Lighting, Ventilation, Temperature, Safety (machinery guards, protective equipment, fire safety, emergency evacuation)."),
+KP("2. ESI Act, 1948"),
+B("For workers earning ≤ Rs 21,000/month. Benefits: complete medical care (employee and family), maternity benefit, disability benefit, dependants' benefit (if worker dies from work-related cause), sickness cash benefit. Contributions: Employer 3.25% + Employee 0.75% of wages."),
+KP("3. EPF Act, 1952"),
+B("EPF: Employer and Employee each contribute 12% of Basic Salary + DA. Available on retirement (5+ years), death, or emergencies. EPS: Employees' Pension Scheme — monthly pension after retirement. EDLI: Employees' Deposit-Linked Insurance — life cover while in service."),
+KP("4. Maternity Benefit Act, 1961 (Amended 2017)"),
+B("26 weeks paid maternity leave (1st and 2nd child); 12 weeks for subsequent births; 8 weeks for adoptive/commissioning mothers; nursing breaks; crèche mandatory for 50+ employees; no dismissal during maternity leave."),
+KP("5. Payment of Gratuity Act, 1972"),
+B("Lump-sum retirement benefit after 5+ years of continuous service. Formula: (15 days × Last Basic Salary × Years of Service) ÷ 26. Example: Rs 50,000 last salary × 20 years → Gratuity = (15 × 50,000 × 20) ÷ 26 = Rs 5,76,923."),
+KP("6. Workmen's Compensation Act, 1923"),
+B("Compensation to workers/families for workplace accidents causing injury, permanent/temporary disability, or death. Amount depends on nature of injury and worker's wages."),
+KP("7. Minimum Wages Act, 1948"),
+B("No worker may be paid below the notified minimum wage. Prevents exploitation and ensures basic standard of living. Revised periodically by state and central governments based on cost of living."),
+KP("8. Payment of Bonus Act, 1965"),
+B("Annual bonus mandatory for eligible employees (earning ≤ Rs 21,000/month). Minimum 8.33%, Maximum 20% of annual wages. Statutory recognition of employees' contribution to profits."),
+SSH2("B. NON-STATUTORY WELFARE MEASURES (Voluntary)"),
+KP("1. Housing and Accommodation"),
+B("Company quarters near workplace, subsidised housing loans, housing allowances, transit accommodation for employees on temporary posting."),
+KP("2. Health and Medical"),
+B("Extended family health insurance (beyond ESI), annual preventive health checkups, on-site clinics, Employee Assistance Programmes (EAPs — mental health, substance abuse counselling), gym/fitness centres, yoga and stress management programmes."),
+KP("3. Food and Refreshments"),
+B("Subsidised canteen meals, free tea/coffee, sponsored overtime meals, special dietary options."),
+KP("4. Education and Skills"),
+B("Tuition reimbursement for higher education, company libraries, online learning platforms (Coursera, LinkedIn Learning), children's scholarships, conference sponsorship."),
+KP("5. Recreation and Culture"),
+B("Sports facilities, cultural programmes, annual picnics, club memberships, inter-departmental tournaments, festival celebrations."),
+KP("6. Financial Assistance"),
+B("Soft loans (marriage, education, medical emergency) at zero or low interest, salary advances, financial counselling, retirement planning, long-service awards."),
+KP("7. Work-Life Balance"),
+B("Flexible working hours (flexitime), work-from-home, extended parental leave for both parents, crèche at workplace, eldercare support, mental health days, no-meeting Fridays."),
+SSH2("SIGNIFICANCE IN IMPROVING SATISFACTION AND PRODUCTIVITY"),
+BL("<b>Higher Morale and Intrinsic Motivation:</b> Employees who feel genuinely valued beyond their salary feel personally connected to the organisation — dramatically improving engagement, loyalty and discretionary effort"),
+BL("<b>Reduced Absenteeism:</b> Health welfare and work-life balance directly reduce sick days; canteen and transport welfare reduces the strain from poor nutrition and exhausting commutes"),
+BL("<b>Lower Turnover:</b> Comprehensive welfare packages — especially those tied to continued employment (housing loans, long-service benefits) — make employees reluctant to leave. Replacing an experienced employee costs far more than providing welfare"),
+BL("<b>Improved Productivity and Quality:</b> Healthy, financially secure, mentally balanced employees produce significantly more and better-quality work — the combination of nutrition, health, financial security and mental well-being builds peak performance conditions"),
+BL("<b>Reduction in Industrial Disputes:</b> Many disputes are rooted in unmet welfare needs. Comprehensive programmes proactively address root causes, reducing grievances, strikes and labour unrest"),
+BL("<b>Talent Attraction and Employer Brand:</b> Companies known for exceptional welfare (Tata, Infosys, Google, Godrej) attract higher-calibre candidates — welfare is a strategic recruiting advantage"),
+BL("<b>Legal Compliance:</b> Statutory compliance prevents government penalties, factory inspection violations, criminal prosecution of directors and reputational damage"),
+B("Employee welfare is not charity — it is a high-return strategic investment. Every rupee spent on genuine welfare generates compounding returns in engagement, productivity, retention and brand equity."),
+NOTE("Key statutes: Factories Act 1948 | ESI Act 1948 | EPF Act 1952 | Maternity Benefit Act 1961 (amended 2017) | Gratuity Act 1972 | Workmen's Compensation Act 1923 | Minimum Wages Act 1948 | Payment of Bonus Act 1965. GRATUITY FORMULA: (15 × Last Basic × Years) ÷ 26.")])
+
+Q("7(a)","Discuss the common causes of disputes in organisations. Explain the different methods of dispute resolution.",10,"Dec 2024","Topic 4: Dispute Resolution (Mod 4)","Industrial Dispute definition (ID Act 1947); Causes: 7 categories; Forms: Strike, Lockout, Gherao, Picketing; ID Act Machinery: Works Committee, Conciliation, Voluntary Arbitration, Labour Court, Industrial Tribunal, National Tribunal; Collective Bargaining",
+[SH("Causes of Industrial Disputes and Dispute Resolution Methods"),
+SSH2("DEFINITION"),
+B("Industrial Disputes Act 1947 defines industrial dispute as 'any dispute or difference between employers and employers, or between employers and workmen, or between workmen and workmen, which is connected with the employment or non-employment or the terms of employment or the conditions of labour of any person.'"),
+SSH2("COMMON CAUSES"),
+BL("<b>Wage and Allowance Disputes (Most Common):</b> Demands for higher wages to keep pace with inflation, non-payment of minimum wages, incorrect wage calculations, denial of DA revisions, non-payment of overtime, bonus disputes (quantum and eligibility), perceived pay inequity within workforce"),
+BL("<b>Working Conditions:</b> Unsafe machinery, inadequate PPE, poor ventilation, excessive noise, long shifts without adequate breaks, denial of statutory welfare facilities (canteen, crèche, first aid)"),
+BL("<b>Personnel Issues:</b> Wrongful dismissal without due process, arbitrary retrenchment without fair compensation, punitive transfers, denial of deserved promotions, unfair seniority calculations"),
+BL("<b>Disciplinary Actions:</b> Perceived disproportionate or politically motivated suspensions, demotions or terminations — especially targeting union leaders"),
+BL("<b>Union Recognition:</b> Management's refusal to recognise legitimately constituted trade unions or engage in collective bargaining"),
+BL("<b>Cost of Living and Economic Inequality:</b> When wages fail to keep pace with inflation and the gap between managerial and worker compensation grows visibly"),
+BL("<b>Political Interference:</b> Multiple unions with political affiliations (AITUC/Congress, CITU/CPM, BMS/BJP, INTUC) sometimes manufacture disputes for political visibility"),
+SSH2("FORMS OF INDUSTRIAL DISPUTES"),
+BL("<b>Strike:</b> Collective refusal to work. Types: General, Sympathetic, Stay-in/Sit-down, Pen-down, Go-slow"),
+BL("<b>Lockout:</b> Management closes workplace to resist worker demands — employer's counterpart to strike"),
+BL("<b>Gherao:</b> Workers surround and confine managers — uniquely Indian, legally controversial"),
+BL("<b>Picketing:</b> Workers stand outside to dissuade others from entering — peaceful picketing is legal"),
+BL("<b>Boycott:</b> Collective refusal to use/purchase employer's goods/services"),
+SSH2("METHODS OF DISPUTE RESOLUTION — ID ACT 1947"),
+KP("1. Works Committee (Bipartite)"),
+B("Mandatory in establishments with 100+ workers. Equal management and worker representatives. Handles day-to-day minor issues — canteen, facilities, minor grievances. Non-binding, consensus-based. First preventive mechanism at grassroots level."),
+KP("2. Conciliation (Tripartite — Government)"),
+B("Government-appointed Conciliation Officer facilitates dialogue between parties to help them reach a voluntary settlement. Does NOT impose a solution — helps parties communicate and find common ground. If conciliation succeeds, agreement is legally binding. If it fails, Officer files failure report and matter proceeds to arbitration or adjudication."),
+KP("3. Voluntary Arbitration"),
+B("Both parties agree on a neutral third-party arbitrator (retired judge, expert) whose decision is binding. Faster and less formal than courts. Reflects higher mutual trust. Suitable after failed conciliation when parties want resolution without full court proceedings."),
+KP("4. Labour Court (Adjudication)"),
+B("Government quasi-judicial body — handles individual rights disputes: wrongful dismissal, disciplinary actions, interpretation of employment contracts. Award is legally enforceable with force of court decree."),
+KP("5. Industrial Tribunal (Adjudication)"),
+B("Handles collective disputes affecting groups of workers — wages, hours, bonuses, retrenchment conditions. More powerful than Labour Court — can modify existing service conditions, not just interpret them. Awards are legally binding."),
+KP("6. National Industrial Tribunal"),
+B("Highest adjudicatory authority for disputes of national importance or those spanning multiple states/industries. National Tribunal awards binding across all relevant parties."),
+SSH2("COLLECTIVE BARGAINING"),
+B("Most important PREVENTIVE mechanism. Unions and management periodically negotiate wages and conditions through structured, good-faith dialogue — resolving potential disputes at the negotiating table before they escalate. Types: Distributive (win-lose — fixed-pie wage dispute), Integrative (win-win — creative solutions), Concessionary (workers concede during hardship), Productivity (wage increases linked to productivity improvements)."),
+NOTE("ID Act 1947 machinery (ascending order): Works Committee → Conciliation → Voluntary Arbitration → Labour Court → Industrial Tribunal → National Tribunal. Dunlop's IR Systems Theory (1958): 3 actors — Employer, Workers/Union, Government — operating within shared ideology, producing workplace rules.")])
+
+Q("7(b)","Evaluate the importance of communication and trust-building in managing virtual organisations.",5,"Dec 2024","Topic 8: Virtual Organisations (Mod 4)","VO definition; HR challenges; Communication: replaces physical presence, prevents isolation, enables collaboration, mental health detection; Trust: replaces supervisory control, psychological safety, enables autonomy; HR strategies",
+[SH("Communication and Trust-Building in Virtual Organisations"),
+B("A Virtual Organisation (VO) is a technology-enabled, geographically dispersed organisation where employees collaborate through digital channels — video conferencing (Zoom, Teams), messaging (Slack), project management (Asana, Jira) — without a traditional physical office. Post-COVID, virtual and hybrid models are the dominant form across knowledge-intensive industries. In VOs, communication and trust substitute for everything that the physical workplace provides naturally."),
+SSH2("IMPORTANCE OF COMMUNICATION IN VIRTUAL ORGANISATIONS"),
+BL("<b>Replaces Physical Presence Entirely:</b> In virtual settings, communication IS the organisation. Every coordination, collaboration, expectation-setting and feedback exchange must happen through deliberate digital communication. Ambiguous or infrequent communication creates an 'information vacuum' filled with assumptions and anxiety. HR must establish explicit protocols: response time standards, mandatory video attendance for critical meetings, structured information-sharing norms."),
+BL("<b>Prevents Isolation and Disengagement:</b> Virtual employees risk feeling isolated and invisible — especially introverts or those in minority groups. Regular structured communication (daily stand-ups, weekly 1:1s, monthly town halls, digital social channels) actively combats 'out of sight, out of mind' and sustains belonging."),
+BL("<b>Enables Collaboration Across Time Zones:</b> Without explicit documentation norms, asynchronous updates and shared project dashboards, tasks fall through cracks and work is duplicated across geographies. HR must train employees in virtual collaboration skills and documentation culture."),
+BL("<b>Supports Mental Health Detection:</b> Regular empathetic check-ins — asking not just 'How is the project?' but 'How are YOU?' — help HR detect early signs of burnout, stress or disengagement before they escalate into crises."),
+SSH2("IMPORTANCE OF TRUST IN VIRTUAL ORGANISATIONS"),
+BL("<b>Replaces Supervisory Control:</b> The 'if I can see you, I know you're working' assumption is impossible in VOs. Leadership must shift from control-based to trust-based. High-trust virtual teams significantly outperform low-trust micromanaged teams in both productivity and quality."),
+BL("<b>Creates Psychological Safety:</b> In high-trust teams, employees share ideas, admit mistakes early, ask for help and raise concerns without fear of judgment — the foundation of effective collaboration and continuous improvement."),
+BL("<b>Increases Autonomy and Intrinsic Motivation:</b> When managers trust teams, they focus on outcomes rather than activities — granting employees significant autonomy over HOW and WHEN they work. Autonomy is a powerful intrinsic motivator for knowledge workers."),
+SSH2("HR STRATEGIES"),
+BL("Clear digital communication protocols and explicit response time standards"),
+BL("Regular video check-ins (weekly 1:1s, daily/weekly stand-ups, monthly all-hands)"),
+BL("Virtual social spaces — digital coffee chats, online team-building, virtual celebrations"),
+BL("Transparent project management platforms (Asana, Jira) making work visible to all"),
+BL("Manager training in virtual leadership: output-based management, empathetic digital communication"),
+BL("Public recognition programmes that replicate social reinforcement of physical offices"),
+BL("Psychological safety norms — making mistakes learning opportunities, not punishable events"),
+NOTE("VO characteristics: location-independent, digital communication, output-based evaluation, self-managed, low overhead costs. HR challenges: e-recruitment, virtual onboarding, e-learning, output-based PMS, digital culture, legal complexity across geographies, preventing isolation and burnout.")])
+
+# ═══════════════════════════════════════════════════════════════════════
+# MODULE 2 — MAY 2025
+# ═══════════════════════════════════════════════════════════════════════
+mod_header(2,"MAY 2025 PAPER","B.Tech VIth Semester | OEC-CS-602(I) | Max Marks: 75")
+part_label("PART-A — Short Answer Questions (1.5 Marks Each)")
+
+may25_a=[
+("1(a)","Explain the concept of Human Resource Management.",1.5,"May 2025","Topic 1: HRM Concept (Mod 1)","HRM definition (Flippo, Dessler); Nature: 7 characteristics; Scope: 7 areas; Evolution: 5 phases",
+[SH("Concept of Human Resource Management"),
+B("HRM is the process of planning, recruiting, selecting, training, developing, compensating and retaining employees to achieve organisational goals. Edwin Flippo: 'HRM is the planning, organising, directing and controlling of procurement, development, compensation, integration, maintenance and separation of human resources to the end that individual, organisational and social objectives are accomplished.' HRM treats employees as the most valuable organisational asset — managing the complete employee lifecycle from hire to retire."),
+B("<b>Nature of HRM:</b> People-oriented (manages humans, not machines), Pervasive (present at all levels and departments), Continuous (never stops), Development-oriented (builds employee potential), Future-oriented (plans for future talent), Integrative (aligns individual and organisational goals), Multidisciplinary (draws from psychology, sociology, economics, law)."),
+B("<b>Scope — 7 Functional Areas:</b> HR Planning, Job Analysis & Design, Recruitment & Selection, Training & Development, Performance Management, Compensation & Benefits, Employee Relations & Welfare. Modern additions: HR Analytics, Digital HR, D&I, International HRM, Knowledge Management, CSR."),
+NOTE("Evolution: Industrial Revolution (1750s — workers as machines) → Scientific Management (Taylor, 1900s — time-motion studies, piece-rate wages) → Human Relations Era (Elton Mayo/Hawthorne Studies, 1930s — social factors matter) → Personnel Management Era (1950s — formal HR departments) → Strategic HRM Era (1980s-present — HR as strategic partner).")]),
+
+("1(b)","State the roles and responsibilities of HR manager.",1.5,"May 2025","Topic 3: Roles of HR Manager (Mod 1)","Dave Ulrich 4-Role Model; 10 Responsibilities; Competencies",
+[SH("Roles and Responsibilities of HR Manager"),
+B("Dave Ulrich's HR Role Model (1997): (1) <b>Strategic Partner</b> — aligns HR with long-term business goals, participates in business planning; (2) <b>Change Agent</b> — leads organisational transformation and cultural change; (3) <b>Administrative Expert</b> — manages payroll, records, compliance and HRIS; (4) <b>Employee Champion</b> — advocates for employees, addresses concerns, ensures well-being."),
+B("<b>10 Key Responsibilities:</b> (1) Workforce Planning; (2) Recruitment & Selection; (3) Training & Development; (4) Performance Management; (5) Compensation & Benefits; (6) Employee Relations — grievance handling, disciplinary actions; (7) Legal Compliance — Factories Act, PF/ESI, Maternity Benefit, POSH Act; (8) HRIS Management; (9) Health & Safety; (10) Organisational Development."),
+NOTE("Key Competencies: Business Acumen, Communication Skills, Strategic Thinking, Emotional Intelligence (EQ), Analytical/Data Skills, Ethical Judgment, Change Management, Digital Literacy, Legal Knowledge, Leadership.")]),
+
+("1(c)","What is the meaning of Job Specification?",1.5,"May 2025","Topic 4: Job Analysis (Mod 2)","Job Specification definition (Flippo); Contents; vs Job Description",
+[SH("Job Specification"),
+B("Job Specification is a written statement of the minimum acceptable human qualities — qualifications, skills, experience, physical characteristics, intelligence and personality traits — required to properly perform a specific job. Edwin Flippo: 'Job Specification is a statement of minimum acceptable human qualities necessary to perform a job properly.' It focuses on the PERSON — answers 'Who should do this job?'"),
+B("<b>Contents:</b> (1) Educational Qualifications — minimum degree, certifications; (2) Work Experience — years and type; (3) Technical Skills — programming, machinery, data analysis; (4) Soft Skills — communication, leadership, teamwork; (5) Physical Fitness — strength, stamina for physical jobs; (6) Intelligence and Analytical Ability; (7) Personality Traits — emotional stability, adaptability, initiative; (8) Special Qualities — languages, driving licence, travel readiness."),
+B("<b>Uses in HR:</b> Recruitment advertisements (what candidates must bring), candidate screening and shortlisting (eliminates unqualified applicants), selection test design, compensation justification through job evaluation."),
+NOTE("JD (Job Description) = about the JOB — WHAT it requires (duties, conditions). JS (Job Specification) = about the PERSON — WHO should do it (qualifications, skills). Both defined by Edwin Flippo.")]),
+
+("1(d)","Explain the meaning of Job Rotation.",1.5,"May 2025","Topic 5: Job Design (Mod 2)","Job Rotation definition; Horizontal movement; Benefits; Limitation; vs Enrichment and Enlargement",
+[SH("Job Rotation"),
+B("Job Rotation is a job design technique where employees are periodically moved from one job to another — at the same organisational level of responsibility and pay — over a defined time period. The JOBS don't change; only EMPLOYEES rotate between them. It is a horizontal movement within the organisation."),
+B("<b>Benefits:</b> Reduces boredom and monotony from single-job repetition; builds multi-functional skills and versatility; prepares employees for future leadership by exposing them to different functions (Finance, Operations, HR, Sales, Marketing); provides cross-trained backup capability; helps identify employees' strongest performance areas; improves understanding of organisational interdependencies."),
+B("<b>Limitation:</b> Does not change the basic nature of jobs — employees may feel they are rotating between equally tedious roles. Must be combined with Job Enrichment for sustained motivational improvement."),
+NOTE("Widely used in Management Trainee Programmes — rotating across functions for 12-18 months before permanent placement. Distinction: Rotation = same level, employees move (horizontal). Enrichment = higher responsibility added (vertical). Enlargement = more tasks at same level (horizontal expansion of content).")]),
+
+("1(e)","Why is Job Evaluation important?",1.5,"May 2025","Topic 6: Job Evaluation (Mod 2)","Job Evaluation definition; 4 methods; Importance: rational pay structure, equity, legal compliance, career paths",
+[SH("Importance of Job Evaluation"),
+B("Job Evaluation is the systematic process of determining the relative worth of each job in relation to other jobs in the organisation — for the purpose of establishing a rational, equitable and internally consistent pay structure. It assesses the JOB, NOT the person doing it. Methods: Ranking (simplest, non-quantitative), Classification/Grading (non-quantitative), Factor Comparison (quantitative), Point Method (most widely used and accurate — assigns points to skill, effort, responsibility, working conditions)."),
+B("<b>Importance:</b>"),
+BL("<b>Rational Pay Structure:</b> Links compensation to actual job content, complexity and responsibility — justified objectively through systematic evaluation rather than personal negotiating power"),
+BL("<b>Internal Pay Equity:</b> Similar jobs paid similarly — reducing feelings of unfairness and pay-related grievances"),
+BL("<b>Basis for External Benchmarking:</b> Graded jobs can be benchmarked against market rates for equivalent grades"),
+BL("<b>Legal Compliance:</b> Equal Remuneration Act 1976 — equal pay for equal work. Job evaluation provides objective justification for pay differences based on job content"),
+BL("<b>Career Path Clarity:</b> Job grades create visible career ladders showing what skills and responsibilities lead to higher-paying grades"),
+NOTE("4 Methods — remember RCFP: Ranking (simplest), Classification (grading), Factor Comparison (quantitative, uses key jobs), Point Method (most accurate, most widely used). Point Method assigns points to compensable factors at multiple degree levels.")]),
+
+("1(f)","What is the importance of training evaluation?",1.5,"May 2025","Topic 4: Training Evaluation (Mod 3)","Kirkpatrick's 4 levels; Phillips ROI; Why evaluate; Importance",
+[SH("Importance of Training Evaluation"),
+B("Training Evaluation is the systematic process of collecting and analysing data to determine whether a training programme achieved its intended learning objectives and produced the expected performance improvements."),
+BL("<b>Justifies Training Investment:</b> Phillips Level 5 ROI = [(Benefits − Cost) ÷ Cost] × 100 provides hard financial evidence that training produces measurable returns — converting training from a perceived cost into a demonstrable investment for senior management"),
+BL("<b>Identifies Improvement Areas:</b> Kirkpatrick Level 1 (Reaction) and Level 2 (Learning) reveal what worked and what needs redesign — enabling continuous quality improvement of future programmes"),
+BL("<b>Confirms Learning Transfer:</b> Level 3 (Behaviour — measured 3-6 months after training) is the critical question: are participants actually applying new skills on the job? Learning without application is wasted investment"),
+BL("<b>Validates TNA Accuracy:</b> If evaluation shows no improvement despite good learning, TNA may have identified the wrong problem — enabling course correction"),
+BL("<b>Demonstrates HR's Strategic Value:</b> Training that produces measurable business improvements (Level 4 Results — sales, quality, productivity) elevates HR's credibility and strategic influence"),
+NOTE("Kirkpatrick's 4 Levels: Level 1 Reaction (satisfaction surveys — immediately after) | Level 2 Learning (tests — during/after) | Level 3 Behaviour (observation — 3-6 months) | Level 4 Results (KPIs — 6-12 months). Phillips Level 5 = ROI calculation.")]),
+
+("1(g)","Define Potential Appraisal.",1.5,"May 2025","Topic 6: Potential Appraisal (Mod 3)","Definition; vs Performance Appraisal; What assessed; Methods; 9-Box Grid",
+[SH("Potential Appraisal"),
+B("Potential Appraisal is the systematic evaluation of an employee's capability and likelihood of performing successfully in future, higher-level roles. While Performance Appraisal looks BACKWARD (HOW WELL performing NOW), Potential Appraisal looks FORWARD (HOW FAR can GO in future — capacity for growth, leadership and advancement)."),
+B("<b>Assessed:</b> Leadership qualities, Learning agility, Strategic thinking, EQ (self-awareness, empathy, regulation), Problem-solving under ambiguity, Communication and influence, Resilience, Innovation."),
+B("<b>Methods:</b> Assessment Centres (most accurate — multi-exercise, multi-assessor), Psychological Testing (MBTI, Big Five, 16PF), 360-Degree Feedback, Development Centres, Performance History Analysis."),
+NOTE("Potential Appraisal → feeds into Succession Planning. 9-Box Grid: Performance (Y-axis) vs Potential (X-axis) → 9 cells from 'Under-performer' to 'Star'. Stars = high performance + high potential → top priority for senior roles.")]),
+
+("1(h)","What is Grievance?",1.5,"May 2025","Topic 2: Grievance Handling (Mod 4)","Grievance definition (Keith Davis); vs complaint vs dispute; Causes; 6-step procedure",
+[SH("Grievance"),
+B("A grievance is any real or imagined feeling of personal injustice that an employee has regarding their employment situation. Keith Davis: 'A grievance is any real or imagined feeling of personal injustice which an employee has concerning his employment relationship.' Covers: wages (underpayment, wrong grade), working conditions (unsafe), supervision (favouritism, harassment), promotion (denial, unfair transfers), leave (denied earned leave), discipline (perceived unfair punishment), interpersonal conflicts (bullying, discrimination)."),
+B("<b>Distinction:</b> Grievance = individual employee's personal dissatisfaction with employment conditions. Complaint = general dissatisfaction. Dispute = collective industrial conflict involving union."),
+B("<b>6-Step Procedure:</b> (1) Informal — Immediate Supervisor (24-48 hrs); (2) Written Grievance to HR (3-5 days); (3) Senior Management (7-10 days); (4) Joint Grievance Committee — management + union reps (15 days); (5) Voluntary Arbitration (30 days); (6) Labour Court/Industrial Tribunal under ID Act 1947."),
+NOTE("Good grievance procedure: Speed, Fairness, Simplicity, Confidentiality, Definiteness (time limits), Finality (binding decision), Access (every employee can use it without fear of retaliation).")]),
+
+("1(i)","Explain the concept of Employee welfare.",1.5,"May 2025","Topic 3: Employee Welfare (Mod 4)","Welfare definition (Labour Investigation Committee); Statutory vs Non-statutory; Key acts; Significance",
+[SH("Concept of Employee Welfare"),
+B("Employee Welfare refers to all services, facilities and amenities provided to workers — beyond wages — to improve working and living conditions, health, safety, economic security and social well-being. Labour Investigation Committee: 'welfare refers to such services, facilities and amenities as may be established in or in the vicinity of undertakings to enable persons employed to perform their work in healthy and congenial surroundings and to provide them with amenities conducive to good health and high morale.'"),
+B("<b>Statutory:</b> Factories Act 1948 (canteen 250+, crèche 30+ women, first aid 150+), ESI Act 1948 (medical/maternity/disability — employer 3.25% + employee 0.75%), EPF Act 1952 (provident fund, pension — 12%+12%), Maternity Benefit Act 1961/2017 (26 weeks paid leave, crèche for 50+), Gratuity Act 1972 (15×Salary×Years÷26), Bonus Act (8.33-20%), Workmen's Compensation Act, Minimum Wages Act."),
+B("<b>Non-Statutory (Voluntary):</b> Company housing, extended health insurance (family), gym, recreation, education support, EAPs (mental health), flexible work, childcare, soft loans."),
+NOTE("Significance: Improves morale | Reduces absenteeism | Lowers turnover | Better productivity | Reduces disputes | Attracts talent | Legal compliance. Welfare is a strategic investment, not charity.")]),
+
+("1(j)","Define HR Audit.",1.5,"May 2025","Topic 7: HR Audit (Mod 4)","HR Audit definition; Types; Process; Purpose; vs HR Accounting",
+[SH("HR Audit"),
+B("HR Audit is a systematic, independent examination — a health check — of all HR policies, practices, processes, records and compliance status to determine whether they are legally compliant, fair, efficient and strategically aligned with business goals. Like a financial audit checks accounts, HR Audit checks people-management practices."),
+B("<b>Types:</b> (1) Compliance Audit — adherence to labour laws (minimum wages, PF/ESI, POSH, working hours); (2) Functional Audit — effectiveness of HR processes (time-to-hire, training ROI, appraisal quality); (3) Strategic Audit — HR strategy alignment with business goals; (4) Cultural Audit — organisational culture, engagement, D&I effectiveness."),
+B("<b>Process:</b> Define Scope → Design Plan (checklists, documents to review) → Collect Data (document review, interviews, surveys) → Analyse (policy vs practice gap) → Report (findings, risks, recommendations) → Implement → Track."),
+NOTE("HR Audit vs HR Accounting: Audit = health check of processes/practices (qualitative). HRA = measuring financial value of human resources as assets (quantitative — Historical Cost, Replacement Cost, Opportunity Cost, ROI methods).")]),
+]
+
+for args in may25_a:
+    Q(*args)
+
+st.append(sp(8))
+part_label("PART-B — Detailed Answer Questions (May 2025)")
+
+Q("2(a)","Describe in detail the process of Human Resource Planning.",10,"May 2025","Topic 5: HR Planning (Mod 1)","HRP definition; Significance; 8-step process; 6 forecasting techniques with examples; Surplus vs Deficit responses",
+[SH("Process of Human Resource Planning"),
+B("Human Resource Planning (HRP) is the systematic, proactive process of ensuring the right number of employees with right skills are available at the right time and place. Formula: HR Gap = Future Demand − Current Internal Supply. HRP is the strategic foundation for all HR activities."),
+SSH2("SIGNIFICANCE"),
+BL("Prevents talent shortages and costly last-minute emergency hiring"),
+BL("Prevents labour surplus and unnecessary redundancy costs"),
+BL("Directly supports business strategy — ensures readiness when strategy requires people"),
+BL("Reduces recruitment costs through proactive internal talent identification"),
+BL("Enables planned training — skill gaps identified early for structured development"),
+BL("Aids succession planning — identifies and prepares future leaders before vacancies arise"),
+SSH2("8-STEP PROCESS"),
+KP("Step 1 — Analyse Organisational Goals"),
+B("Begin with deep understanding of the business strategy — expansion, digital transformation, new product launch, automation, restructuring, internationalisation. Each direction has different HR implications: international expansion needs bilingual staff and IHRM expertise; automation needs IT specialists, not routine operators. HR translates every business goal into specific human capital requirements."),
+KP("Step 2 — Audit Current HR (Skills Inventory)"),
+B("Create comprehensive real-time database of every employee: qualifications, technical/soft skills, experience, performance ratings, training completed, career aspirations, expected retirement timeline. HRIS platforms (SAP SuccessFactors, Workday) maintain dynamic inventories. Also assesses: attrition rates, productivity levels, skill gaps by department, age distribution and succession risk for critical positions."),
+KP("Step 3 — Forecast HR Demand"),
+B("Estimate future HR requirements using forecasting techniques:"),
+BL("<b>Managerial Judgment (Qualitative):</b> Managers estimate future needs from experience. Bottom-up (departments aggregate to organisation) or top-down (senior management breaks down to departments). Fast but subjective."),
+BL("<b>Delphi Technique (Qualitative):</b> Multiple experts provide anonymous forecasts in iterative rounds until consensus. Eliminates groupthink and dominant-individual bias. Best for long-range forecasting."),
+BL("<b>Trend Analysis (Quantitative):</b> Past employment data extrapolated to predict future. If workforce grew 10% annually for 7 years, forecast projects 10% future growth. Best for stable organisations."),
+BL("<b>Regression Analysis (Quantitative):</b> Mathematical relationship between business driver (sales, production) and HR headcount established statistically. Example: every Rs 10 crore sales growth needs 45 additional employees."),
+BL("<b>Work Load Analysis (Quantitative):</b> Total workload ÷ Output per employee = employees needed. Example: 100,000 calls ÷ 5,000 per agent per month = 20 agents + 15% absenteeism allowance = 23 agents."),
+BL("<b>Ratio Analysis (Quantitative):</b> Historical ratios applied to planned scale. 1 HR per 75 employees: planned 1,500 staff → 20 HR needed."),
+KP("Step 4 — Forecast HR Supply"),
+B("Internal: promotions, transfers, employees returning from leave, trained pipeline from succession plans. External: university graduation rates, industry attrition trends, competitor hiring patterns, labour market availability."),
+KP("Step 5 — Identify HR Gap"),
+BL("<b>Deficit (Demand > Supply):</b> External recruitment, internal promotions, retraining and redeployment, contract/gig workers, outsourcing, automation to reduce headcount requirement"),
+BL("<b>Surplus (Supply > Demand):</b> Natural attrition (not replacing leavers), VRS (Voluntary Retirement Scheme with attractive financial package), retraining for different roles, short-time working, temporary layoffs"),
+KP("Step 6 — Formulate Action Plan"),
+B("Recruitment plan, Training and Upskilling plan, Succession Development (IDPs for succession candidates), Retention plan, Retrenchment plan if surplus."),
+KP("Step 7 — Implement"),
+B("Execute: publish job postings, launch campus drives, schedule training, enrol succession candidates, communicate VRS schemes."),
+KP("Step 8 — Monitor, Evaluate and Control"),
+B("Track actual vs planned quarterly or semi-annually: vacancies filled on time? Skill gaps closing? Attrition within targets? HRIS dashboards provide real-time tracking data for agile adjustments."),
+NOTE("7 Forecasting techniques: Managerial Judgment, Delphi (qualitative); Trend, Regression, Work Load Analysis, Ratio Analysis (quantitative); Succession Charts (for senior roles). Work Load Formula: Employees = Total Workload ÷ Output per Employee.")])
+
+Q("2(b)","Explain the concept of HRIS.",5,"May 2025","Topic 6: HRIS (Mod 1)","HRIS definition; Formula: HR+IT+Data; 8 components; Advantages; Limitations; Examples",
+[SH("Human Resource Information System (HRIS)"),
+B("HRIS is an integrated software solution that stores, manages, processes and reports all HR-related data. HRIS = HR Functions + Information Technology + Data Management. Examples: SAP SuccessFactors, Workday, Oracle HCM, Darwinbox (India), Zoho People, BambooHR."),
+SSH2("KEY COMPONENTS"),
+BL("<b>Employee Database:</b> Centralised secure repository — personal details, employment history, qualifications, skills, performance ratings, training records, compensation history"),
+BL("<b>Payroll Management:</b> Automates salary calculation, TDS, PF/ESI contributions, payslip generation, direct bank transfers — ensures 100% accuracy"),
+BL("<b>ATS (Applicant Tracking):</b> Digital recruitment — job posting, AI resume screening, interview scheduling, offer generation, onboarding workflow"),
+BL("<b>LMS (Learning Management):</b> E-learning completions, certifications, compliance training, individual development plan progress"),
+BL("<b>Performance Management:</b> Goal-setting (SMART/OKRs), appraisal cycles, 360-degree feedback, performance-to-compensation links"),
+BL("<b>Leave and Attendance:</b> Biometric integration, leave requests/approvals, auto-calculation of balances, overtime tracking"),
+BL("<b>HR Analytics:</b> Real-time dashboards on attrition, headcount, diversity, recruitment funnel, training ROI — data-driven decisions"),
+BL("<b>Self-Service Portal:</b> Employees access payslips, apply leave, update data independently — dramatically reduces HR admin workload"),
+SSH2("ADVANTAGES"),
+BL("Eliminates paperwork — saves time, reduces errors"),
+BL("Real-time analytics enables faster, evidence-based HR decisions"),
+BL("Reduces HR operational costs through task automation"),
+BL("Automated statutory reports (PF ECR, ESI, TDS) ensure compliance"),
+BL("Enhanced employee experience through digital HR services"),
+BL("Frees HR professionals for strategic work"),
+SSH2("LIMITATIONS"),
+BL("High initial implementation and data migration cost"),
+BL("Data security risks — employee data is sensitive"),
+BL("Technology dependency — system failures disrupt HR operations"),
+BL("Employee resistance to changing from traditional methods"),
+NOTE("Formula: HRIS = HR Functions + IT + Data Management. Modern HRIS incorporates AI for predictive attrition modelling, engagement analytics and automated compliance monitoring.")])
+
+Q("3(a)","Define Recruitment. State the different sources of recruitment.",5,"May 2025","Topic 1: Recruitment (Mod 2)","Recruitment definition (Flippo); Positive vs negative; Internal: 6 sources; External: 7 sources; Advantages/disadvantages overview",
+[SH("Recruitment — Definition and Sources"),
+B("Edwin Flippo: 'Recruitment is the process of searching for prospective employees and stimulating them to apply for jobs in the organisation.' It is a POSITIVE process — attracting as many qualified candidates as possible to build a large pool from which Selection (NEGATIVE process) picks the best."),
+SSH2("INTERNAL SOURCES"),
+BL("<b>Promotions:</b> Higher-level position — rewards performance and loyalty, motivates entire workforce"),
+BL("<b>Transfers:</b> Same-level move across departments/locations — fills gaps, cross-functional development"),
+BL("<b>Employee Referrals:</b> Network recommendations — cost-effective, culturally pre-screened, higher retention"),
+BL("<b>Internal Job Postings:</b> Intranet vacancy announcements — voluntary applications, career mobility"),
+BL("<b>Job Rotation:</b> Multi-skilled employees qualify for different internal vacancies"),
+BL("<b>Recalls from Layoffs:</b> Previously laid-off high performers — minimal re-onboarding required"),
+B("<b>Advantages:</b> Cost-effective, faster, less risk, boosts morale, no cultural training needed. <b>Disadvantages:</b> Limited pool, no fresh ideas, internal politics, chain vacancies."),
+SSH2("EXTERNAL SOURCES"),
+BL("<b>Job Portals:</b> Naukri, LinkedIn, Indeed — AI-powered ATS screening, massive reach"),
+BL("<b>Campus Recruitment:</b> Universities, IITs, IIMs — fresh, trainable graduates"),
+BL("<b>Recruitment Agencies:</b> TeamLease, Adecco, Michael Page — pre-screened, time-saving, expensive"),
+BL("<b>Walk-in Interviews:</b> Mass hiring of clerical/technical staff"),
+BL("<b>Social Media:</b> LinkedIn (professional), Instagram/Twitter — employer branding, passive candidates"),
+BL("<b>AI-Based Tools:</b> HireVue chatbots, ATS auto-screening — reduces time-to-hire"),
+BL("<b>Labour Contractors:</b> Contractual workers for seasonal/temporary needs"),
+B("<b>Advantages:</b> Fresh talent, new ideas, wider choice, diversity, specialised skills. <b>Disadvantages:</b> Expensive, time-consuming, higher risk, longer onboarding."),
+NOTE("Best practice: Internal-first policy (post internally before external search), then external for specialised, senior or diversity roles.")])
+
+Q("3(b)","Describe the various steps involved in the selection process, from initial screening to final appointment.",10,"May 2025","Topic 2: Selection (Mod 2)","Selection definition; 8 steps in detail; Most critical steps analysis; Selection techniques; Legal aspects",
+[SH("Selection Process — Initial Screening to Final Appointment"),
+B("Selection is the systematic process of choosing the most suitable candidate from the recruitment pool. It is a NEGATIVE process — at each stage, unsuitable candidates are eliminated. A rigorous process is one of the highest-value HR investments — the cost of a wrong hire far exceeds the cost of thorough selection."),
+SSH2("STEP 1 — PRELIMINARY SCREENING"),
+B("Initial review of all CVs/applications against minimum Job Specification requirements. Modern ATS auto-screens using keyword algorithms — processes thousands instantly. Output: preliminary shortlist of minimally qualified candidates."),
+SSH2("STEP 2 — SELECTION TESTS"),
+B("Objective assessments: Intelligence Tests (IQ, reasoning — predicts general learning), Aptitude Tests (potential to learn specific skills — numerical, verbal), Achievement Tests (current proficiency — coding, accounting, typing), Personality Tests (MBTI, Big Five/OCEAN — traits for job/team fit), Psychometric Tests (comprehensive psychological assessment for managerial roles)."),
+SSH2("STEP 3 — EMPLOYMENT INTERVIEW (Most Critical Stage)"),
+B("Direct assessment of communication, personality, motivation, cultural fit. Types:"),
+BL("<b>Structured Interview:</b> Standardised pre-set questions asked consistently to all — reduces bias, enables comparison"),
+BL("<b>Behavioural/STAR Method:</b> 'Tell me about a time when...' — Situation, Task, Action, Result. Past behaviour = best predictor of future performance"),
+BL("<b>Panel Interview:</b> Multiple interviewers (HR, technical expert, hiring manager) — reduces individual bias, richer evaluation"),
+BL("<b>Stress Interview:</b> Deliberate pressure to test composure — for high-pressure roles"),
+BL("<b>Video/AI Interview:</b> Asynchronous AI-analysed for mass initial screening"),
+SSH2("STEP 4 — REFERENCE AND BACKGROUND CHECKS"),
+B("Verify all claimed information: previous employment (dates, role, performance, reason for leaving), educational qualifications, criminal record, professional certifications, credit history for financial roles. Most undervalued step — thorough reference checks provide real-world performance evidence that no interview can replicate. Studies show resume fraud is more common than most HR professionals expect."),
+SSH2("STEP 5 — MEDICAL / PHYSICAL EXAMINATION"),
+B("Physical fitness confirmed for job demands. Mandatory for physically demanding roles (armed forces, mining, aviation) and health-critical roles (food handling, healthcare). Cannot discriminate against candidates with disabilities who can perform essential functions with reasonable accommodation."),
+SSH2("STEP 6 — SELECTION DECISION"),
+B("Selection committee (HR + hiring manager + subject matter expert) reviews ALL evidence and makes final documented decision. Must be evidence-based, comprehensive, documented and legally defensible. Use structured scoring matrices mapping criteria to assessment evidence to prevent confirmation bias."),
+SSH2("STEP 7 — JOB OFFER"),
+B("Formal written offer: job title and grade, CTC breakdown, joining date, reporting structure, location, probation period, notice period, all conditions. Candidate accepts, negotiates or declines. HR must be prepared to negotiate within approved parameters."),
+SSH2("STEP 8 — CONTRACT OF EMPLOYMENT AND ONBOARDING"),
+B("Employment contract signed: duties, compensation, NDA/confidentiality, intellectual property, non-compete provisions, notice period, disciplinary procedures. Followed by Placement (role assignment), Induction (orientation — company history, values, policies, facilities), and Socialization (Van Maanen & Schein's 3 stages: Pre-arrival → Encounter → Metamorphosis)."),
+NOTE("STAR Method: Situation → Task → Action → Result. Panel interviews + structured scoring = highest-value interview investments. Assessment Centres = most accurate for senior/managerial selection. Reference checks = most undervalued but highest-information step.")])
+
+Q("4","Discuss the key factors that have influenced the development of HRM, including the impact of industrialisation, technological advancements, and shifts in societal values.",15,"May 2025","Topic 1: HRM Evolution (Mod 1)","5 phases: Industrial Revolution, Scientific Management (Taylor), Human Relations (Mayo/Hawthorne), Personnel Management Era, Strategic HRM; Technology impact; Globalisation; Societal values: gender equality, work-life balance, Gen Z; Dave Ulrich; Resource-Based View",
+[SH("Factors Influencing the Development of HRM"),
+B("HRM has evolved over centuries, shaped by economic, technological, social, legal and political transformations. The key forces driving this evolution from primitive factory supervision to modern strategic people-management are: Industrialisation, Scientific Management, Human Relations Movement, Post-War Formalisation, and the ongoing Technology and Societal Value Revolutions."),
+SSH2("1. INDUSTRIAL REVOLUTION (1750s–1900s)"),
+B("The Industrial Revolution transformed manufacturing from cottage industries to large factory production — creating the first large concentrations of workers under single management. This made 'managing people' a new, urgent organisational challenge. Working conditions were appalling: 12-16 hour days, child labour, hazardous machinery without guards, subsistence wages, no injury compensation. The factory system's scale made informal supervision impossible — basic record-keeping, discipline systems and rule-setting became organisational necessities. Growing social reform pressure and early trade union movements forced the first legislative protections (Factory Acts in England), making formal compliance management necessary. This was the origin of 'personnel administration.'"),
+SSH2("2. SCIENTIFIC MANAGEMENT — F.W. TAYLOR (1900s–1930s)"),
+B("Taylor introduced the first analytical approach to managing work: (1) Time-and-motion studies identifying the 'one best method'; (2) Standardisation of tools, materials and procedures; (3) Piece-rate wages linking pay directly to output; (4) Scientific selection and training of workers. This transformed personnel management from pure intuition into a proto-science. Henry Fayol's management principles (authority, unity of command, division of work) provided the broader organisational framework that HR would operationalise. This era established that HR practices could be systematically designed and improved through observation and analysis."),
+SSH2("3. HUMAN RELATIONS MOVEMENT — ELTON MAYO & HAWTHORNE STUDIES (1930s–1950s)"),
+B("Mayo's Hawthorne Studies (1927-1932) at Western Electric's Hawthorne plant revealed the Hawthorne Effect — workers improved productivity not from physical condition changes but from feeling observed and valued. Subsequent studies showed social factors — recognition, belonging, group dynamics, supervisory attention — were more powerful performance drivers than financial incentives alone. This permanently changed HRM: employees are social beings; feelings, relationships and need for recognition profoundly affect work behaviour; effective management requires attention to emotional and social needs. This era created formal HR departments with welfare, counselling and morale responsibilities."),
+SSH2("4. POST-WAR PERSONNEL MANAGEMENT ERA (1950s–1980s)"),
+B("Post-WWII economic boom professionalised the personnel function. Formal HR departments became standard. Systematic practices developed: structured recruitment, standardised training, formal appraisals, job evaluation, industrial relations management. Trade unions grew enormously — making collective bargaining a critical HR skill. Major labour legislation (India: Industrial Disputes Act 1947, Factories Act 1948, ESI Act 1948, PF Act 1952, Minimum Wages Act 1948, Maternity Benefit Act 1961) imposed significant compliance obligations. Maslow's Hierarchy of Needs (1943) and Herzberg's Two-Factor Theory (1959) provided motivation frameworks inspiring new compensation and job design approaches."),
+SSH2("5. TECHNOLOGICAL ADVANCEMENTS (1980s–PRESENT)"),
+BL("<b>HRIS and Automation (1980s-2000s):</b> Computerised HR systems digitised records, automated payroll, streamlined recruitment — transforming HR from paper-based administration to digital management"),
+BL("<b>Internet and Online Recruitment (1990s-2000s):</b> Job portals (Naukri, LinkedIn, Indeed) provided global talent pool access; social media enabled passive candidate engagement at scale"),
+BL("<b>AI and Machine Learning (2010s-Present):</b> AI-powered ATS auto-screens resumes; video interview AI analyses behaviour; predictive analytics forecasts attrition; chatbots handle initial candidate interactions"),
+BL("<b>Cloud HRM Platforms:</b> SAP SuccessFactors, Workday, Oracle HCM, Darwinbox enable real-time global HR management with seamless function integration"),
+BL("<b>Remote Work Technology (Post-COVID):</b> Zoom, Teams, Slack, Asana changed HR practices around performance management, culture building, recruitment and engagement"),
+SSH2("6. GLOBALISATION"),
+B("Cross-border expansion required entirely new IHRM capabilities: managing PCNs, HCNs and TCNs simultaneously; expatriate selection, cross-cultural training and repatriation; multi-jurisdictional legal compliance; international compensation design. Hofstede's 5 cultural dimensions (Power Distance, Individualism, Uncertainty Avoidance, Masculinity, Long-term Orientation) provided the scientific framework for cross-cultural management."),
+SSH2("7. SHIFTS IN SOCIETAL VALUES"),
+BL("<b>Gender Equality:</b> Equal Remuneration Act, Maternity Benefit Act, POSH Act 2013 (ICC mandatory) — D&I is now a strategic HR priority"),
+BL("<b>Work-Life Balance:</b> Dual-income families and quality-of-life expectations drove demand for flexible hours, remote work, parental leave, mental health support"),
+BL("<b>Millennial and Gen Z Expectations:</b> Purpose over compensation, continuous feedback, development opportunities, digital tools, genuine D&I, ethical organisations — driving major HRM transformations"),
+BL("<b>Mental Health Awareness:</b> EAPs, wellness allowances, mental health days, psychological safety cultures — increasingly essential"),
+SSH2("8. STRATEGIC HRM — THE MODERN SYNTHESIS"),
+B("Dave Ulrich's 1997 framework repositioned HR from administrative function to Strategic Partner. The Resource-Based View (Barney, 1991) provided the theoretical foundation — employees are unique, valuable, rare and inimitable human capital constituting a sustained competitive advantage. Today's HRM encompasses HR analytics, digital HR, talent management, OD, D&I, knowledge management and CSR — the most multidimensional, strategically important function in any modern organisation."),
+NOTE("Key theorists: F.W. Taylor (Scientific Management) | Elton Mayo (Hawthorne Studies, Human Relations) | Maslow (Hierarchy of Needs, 1943) | Herzberg (Two-Factor Theory, 1959) | Dave Ulrich (Strategic Partner, 1997) | Barney (Resource-Based View, 1991) | Hofstede (Cultural Dimensions) | Peter Drucker (MBO, Father of Modern Management).")])
+
+Q("5(a)","State and explain the different components of Employee Compensation.",5,"May 2025","Topic 7: Compensation (Mod 3)","3 categories: Direct Financial, Indirect Financial, Non-Financial; Each with examples; Total Rewards philosophy",
+[SH("Components of Employee Compensation"),
+B("Employee Compensation is the total of all rewards — financial and non-financial — provided in exchange for services. Three broad categories:"),
+SSH2("1. DIRECT FINANCIAL COMPENSATION"),
+BL("<b>Base Pay (Fixed):</b> Core monthly salary determined by job grade, skills and market. Paid regardless of performance — provides financial security and predictability"),
+BL("<b>Variable Pay (Performance-Linked):</b> Performance bonuses, sales commissions, piece-rate wages, STIs and LTIs — directly links reward to output and creates performance differentiation"),
+BL("<b>Allowances:</b> HRA (House Rent Allowance), DA (Dearness Allowance — linked to CPI), TA (Travel), LTA (Leave Travel), CCA (City Compensatory for high-cost cities like Mumbai/Bengaluru)"),
+BL("<b>ESOPs:</b> Right to purchase company shares below market price — aligns employee interests with company success through vesting schedules (golden handcuffs)"),
+BL("<b>Profit Sharing:</b> Pre-defined % of annual company profits distributed — creates collective ownership mentality"),
+SSH2("2. INDIRECT FINANCIAL COMPENSATION (BENEFITS)"),
+BL("<b>Legally Required (Statutory):</b> PF (employer 12% + employee 12%), ESI (employer 3.25% + employee 0.75%), Gratuity (15×Salary×Years÷26 after 5+ years), Maternity Benefit (26 weeks), Annual Bonus (8.33-20%)"),
+BL("<b>Voluntary:</b> Extended family health insurance (spouse, children, parents), company housing/housing loans, company transport, subsidised meals, gym, childcare, EAPs (mental health counselling), tuition reimbursement, children's scholarships"),
+SSH2("3. NON-FINANCIAL COMPENSATION"),
+BL("<b>Recognition and Awards:</b> Employee of the Month, performance awards, public appreciation, peer recognition, long-service honours"),
+BL("<b>Job Satisfaction:</b> Job enrichment (added responsibility, autonomy), interesting and meaningful work, creativity and innovation opportunities"),
+BL("<b>Work-Life Balance:</b> Flexible hours, WFH options, extended parental leave, mental health days, no-meeting Fridays — highly valued by millennials and Gen Z"),
+BL("<b>Career Development:</b> Training, mentoring, coaching, leadership programmes, clear promotion paths — investment in future that builds loyalty beyond any financial reward"),
+NOTE("Total Rewards philosophy: Pay + Benefits + Learning & Development + Work Environment + Work-Life Balance. Leading organisations (Google, Microsoft, Tata, Infosys) design holistic total rewards propositions that attract, motivate and retain talent across all generations.")])
+
+Q("5(b)","Discuss the importance of each step of the training process and how they contribute to the overall effectiveness of the training program.",10,"May 2025","Topics 1 & 3: Training Process (Mod 3)","6-step process; Each step's contribution; TNA as foundation; SMART objectives; ADDIE design; Kirkpatrick evaluation; Follow-up/transfer; Ebbinghaus Forgetting Curve; Andragogy",
+[SH("Importance of Each Step in the Training Process"),
+B("Training is a planned, systematic process improving employee knowledge, skills, attitudes and behaviours. Six sequential, interdependent steps — each critically important. Weakening any single step cascades into failures at subsequent stages, ultimately producing training that fails to improve performance."),
+SSH2("STEP 1 — TRAINING NEED ANALYSIS (TNA) — THE FOUNDATION"),
+B("TNA identifies WHO needs training, in WHAT skills, and WHY — at three levels: Organisational (strategic needs: what does business strategy require?), Task (what does the job require?), Individual (what does this specific employee lack?). Methods: performance appraisals, observation, surveys, interviews, customer feedback, exit interview analysis."),
+B("<b>Why critical:</b> Training without TNA is like prescribing medicine without diagnosis. A call centre that trains all staff in 'product knowledge' when the real gap is 'empathy and de-escalation' will see zero improvement despite complete training. TNA ensures every training rupee addresses the right gap for the right employee."),
+SSH2("STEP 2 — SETTING SMART LEARNING OBJECTIVES"),
+B("Clear, measurable SMART objectives defining exactly what trainees will KNOW, DO or FEEL differently after training. Example: 'After training, all managers will correctly apply the 5-step disciplinary interview process in 4 of 5 assessed role-play scenarios within 2 weeks.'"),
+B("<b>Why critical:</b> Objectives give direction to every subsequent step. Trainers know what to teach. Trainees know what they must achieve. Evaluators know what success looks like. Without objectives, training sprawls unfocused and evaluation is impossible."),
+SSH2("STEP 3 — DESIGNING THE TRAINING PROGRAMME"),
+B("Translates objectives into a concrete learning experience: selecting methods matching objectives (simulation for surgery, role play for interpersonal skills, e-learning for theory), developing content (presentations, case studies, videos, e-learning modules), sequencing (simple to complex), designing assessments, respecting Andragogy (Malcolm Knowles): adults are self-directed, experience-based, purpose-driven and problem-centred."),
+B("<b>Why critical:</b> Even the clearest objective fails with the wrong method. Teaching sales negotiation by video alone, without role-play practice, won't transfer to real negotiations. Design determines whether the learning experience will actually create the intended capability."),
+SSH2("STEP 4 — IMPLEMENTING THE TRAINING"),
+B("Deliver the programme: facilitate sessions, manage engagement, adapt pace to participant responses, maintain psychological safety. Skilled facilitators create environments where adults feel respected and empowered to experiment with new skills without fear of judgment."),
+B("<b>Why critical:</b> Perfect design fails with poor delivery. Trainers who read off slides without engaging, poor technology, sessions running over time, or environments where participants don't feel safe to question — all undermine learning regardless of design quality."),
+SSH2("STEP 5 — EVALUATING EFFECTIVENESS (KIRKPATRICK'S 4-LEVEL MODEL)"),
+BL("<b>Level 1 — Reaction:</b> Satisfaction surveys immediately after — did participants find it relevant and well-delivered?"),
+BL("<b>Level 2 — Learning:</b> Pre/post tests and skill demonstrations — did they acquire the targeted KSAs?"),
+BL("<b>Level 3 — Behaviour:</b> Supervisor observations 3-6 months after — are they applying new skills on the job? (Critical: many programmes show good Level 2 but poor Level 3 transfer)"),
+BL("<b>Level 4 — Results:</b> KPIs 6-12 months after — measurable business improvements (sales, quality, productivity)?"),
+BL("<b>Phillips Level 5 — ROI:</b> [(Benefits − Cost) ÷ Cost] × 100"),
+B("<b>Why critical:</b> Without evaluation, training is an act of faith. Evaluation reveals which investments produce results, justifies budgets to management, and enables continuous quality improvement."),
+SSH2("STEP 6 — FOLLOW-UP, TRANSFER AND REINFORCEMENT"),
+B("Post-training support: manager coaching reinforcing new behaviours, job aids for on-the-job application, practice assignments requiring new skills, peer learning communities, recognition of new skill use."),
+B("<b>Why critical:</b> The Ebbinghaus Forgetting Curve shows 70% of learning is forgotten within a week without reinforcement. Transfer requires: managers who reinforce new behaviours, immediate practice opportunities, removal of barriers to application, and recognition that motivates continued use."),
+B("All 6 steps form an integrated cycle. Most effective when: TNA is rigorous; objectives are SMART; design respects adult learning; delivery is skilled; evaluation is multi-level; and follow-up actively supports transfer. Compromising any step reduces the return on the entire training investment."),
+NOTE("Key frameworks: ADDIE (training design structure) | Kirkpatrick's 4 Levels (evaluation) | Phillips ROI Level 5 | Malcolm Knowles' Andragogy (adults: self-directed, experience-based, purpose-driven, problem-centred) | Ebbinghaus Forgetting Curve (70% forgotten in 1 week without reinforcement).")])
+
+Q("6(a)","Discuss the challenges and opportunities of managing a global workforce. How do cultural, economic, and political differences impact HRM practices in multinational corporations.",10,"May 2025","Topic 5: IHRM (Mod 4)","IHRM; PCN/HCN/TCN; Challenges: Hofstede's 5 dimensions, legal complexity, expatriate management, compensation; Opportunities: global talent, diversity-innovation, knowledge transfer, 24/7 ops",
+[SH("Managing a Global Workforce — Challenges and Opportunities"),
+B("International HRM (IHRM) manages human resources across national boundaries in multinational corporations. Three employee types: PCNs (Parent Country Nationals — HQ country citizens as expatriates), HCNs (Host Country Nationals — local subsidiary employees), TCNs (Third Country Nationals — citizens of a third country). This tri-national workforce is exponentially more complex than domestic HR."),
+SSH2("CHALLENGES"),
+KP("1. Cultural Differences — Most Pervasive Challenge"),
+B("Geert Hofstede's 5 Cultural Dimensions explain management practice differences:"),
+BL("<b>Power Distance:</b> High (India, Malaysia) = hierarchical, autocratic management accepted. Low (Denmark, Sweden) = egalitarian, consultative management expected"),
+BL("<b>Individualism vs Collectivism:</b> Individual (USA, UK) = personal accountability, individual performance. Collectivist (Japan, China) = team harmony, group accountability, face-saving"),
+BL("<b>Uncertainty Avoidance:</b> High (Japan, France) = formal rules, structured processes. Low (Singapore, Denmark) = comfortable with ambiguity and innovation"),
+BL("<b>Masculinity vs Femininity:</b> Masculine (Japan, Germany) = achievement and competition. Feminine (Sweden, Norway) = work-life balance and collaboration"),
+BL("<b>Long-term vs Short-term Orientation:</b> Long-term (China, Japan) = perseverance, thrift. Short-term (USA, UK) = quick results, tradition"),
+B("Impacts every HR practice: communication style, feedback delivery, performance management, negotiation, team structure, incentive design (individual bonus vs collective profit-sharing), motivation strategies."),
+KP("2. Legal and Regulatory Complexity"),
+B("Each country has unique employment laws: minimum wages, mandatory contract terms, termination procedures, working hours limits, mandatory benefits (statutory leave, social security), visa requirements, data privacy laws (GDPR in EU, PDPA in India). Non-compliance risks heavy fines, closures, prosecution and reputational damage."),
+KP("3. Expatriate Management"),
+B("30-50% failure rate without proper support. Challenges: selecting employees with technical competence AND cross-cultural adaptability; comprehensive pre-departure training; complex compensation packages (base + COLA + housing + children's education + home leave + tax equalisation + hardship premium); on-assignment family support (spousal employment, school admission); planned repatriation (reverse culture shock, skill utilisation)."),
+KP("4. Compensation Complexity"),
+B("Balancing: salary currency and exchange rate hedging, purchasing power parity across locations, tax equalisation, cost-of-living adjustments, and internal equity while respecting local market benchmarks."),
+KP("5. Political Risk"),
+B("Instability, nationalisation, sanctions, sudden visa restrictions. HR needs political risk assessments, evacuation protocols, emergency communication systems and contingency staffing plans."),
+SSH2("OPPORTUNITIES"),
+BL("<b>Global Talent Access:</b> Recruit world's best specialists — AI researchers from India/Israel/Eastern Europe, engineering talent from Germany, finance expertise from Singapore"),
+BL("<b>Diversity-Driven Innovation:</b> Culturally diverse teams produce more creative solutions. Research consistently shows diversity outperforms homogeneity on complex challenges"),
+BL("<b>Knowledge Transfer:</b> Global workforce shares technical expertise and best practices across borders — manufacturing efficiency from Japan, digital HR tools from USA, adopted worldwide"),
+BL("<b>24/7 Operations:</b> Time-zone-distributed workforce enables round-the-clock development and customer service without night shift premiums — structural competitive advantage"),
+NOTE("Hofstede's 5 Dimensions: Power Distance | Individualism | Uncertainty Avoidance | Masculinity | Long-term Orientation. Expatriate failure rate without support: 30-50%. Successful IHRM needs cultural intelligence, legal expertise, flexible policies and robust expatriate support.")])
+
+Q("6(b)","Discuss the importance of corporate social responsibility.",5,"May 2025","Topic 9: Ethics & CSR (Mod 4)","CSR definition; Carroll's Pyramid; Section 135 Companies Act 2013; 7 importance points; HR CSR role",
+[SH("Importance of Corporate Social Responsibility (CSR)"),
+B("CSR is the voluntary commitment by businesses to conduct themselves ethically, contribute to economic development and improve quality of life of employees, communities and society — while remaining profitable. Carroll's CSR Pyramid (1979): Economic (be profitable — the foundation) → Legal (obey all laws) → Ethical (be ethical beyond law) → Philanthropic (be a good corporate citizen). India's Section 135, Companies Act 2013: companies with turnover ≥ Rs 1,000 crore, net worth ≥ Rs 500 crore, or net profit ≥ Rs 5 crore must spend 2% of 3-year average net profit on CSR activities."),
+SSH2("IMPORTANCE"),
+BL("<b>Talent Attraction and Retention:</b> 44% of millennials reject job offers from companies with poor CSR (Deloitte 2021). CSR leadership attracts higher-quality candidates and creates deeper employee loyalty and purpose-driven engagement"),
+BL("<b>Brand and Reputation:</b> CSR builds powerful positive public image. Tata, Infosys, Unilever, ITC leverage CSR as a core brand differentiator. Consumers increasingly prefer socially responsible brands"),
+BL("<b>ESG Investor Confidence:</b> Environmental, Social, Governance investing is now mainstream. Strong ESG scores attract institutional capital; poor CSR raises capital costs and risks divestment"),
+BL("<b>Employee Engagement and Productivity:</b> CSR programme participation correlates with higher job satisfaction, organisational pride and loyalty — directly linked to productivity increases"),
+BL("<b>Risk Management:</b> Ethical supply chains, fair labour, safety investments reduce regulatory, legal and reputational risk — preventing costly crises"),
+BL("<b>Community Development:</b> Skill development, education, healthcare support create human capital and goodwill in surrounding communities — building long-term social licence to operate"),
+BL("<b>Legal Mandate (India):</b> Section 135 Companies Act 2013 — 2% net profit CSR spending is a legal obligation for eligible companies with board-level accountability and financial penalties for non-compliance"),
+NOTE("Carroll's Pyramid (1979): Economic → Legal → Ethical → Philanthropic. India: Section 135 — 2% of 3-year avg net profit. Activities: education, health, gender equality, environment, rural development, Swachh Bharat, Skill India. CSR is a strategic business imperative, not mere philanthropy.")])
+
+Q("7","Describe the various steps involved in the performance appraisal process. Compare and contrast different performance appraisal methods.",15,"May 2025","Topic 7: PMS (Mod 2)","PA definition; 7-step process; Traditional: 8 methods; Modern: 5 methods; Traditional vs Modern comparison; Choosing right method",
+[SH("Performance Appraisal Process and Methods"),
+SSH2("DEFINITION"),
+B("Performance Appraisal is the systematic evaluation of an employee's job performance against pre-defined standards, goals or expected behaviours — communicated with feedback and action plans. Objectives: provide feedback, identify training needs, inform promotion/compensation decisions, motivate through recognition, support succession planning, create HR documentation."),
+SSH2("7-STEP PA PROCESS"),
+KP("Step 1 — Establish Performance Standards"),
+B("SMART, measurable standards set BEFORE the appraisal period begins. Derived from Job Description. Mutually agreed (especially in MBO) to maximise employee ownership. Without standards, appraisal is arbitrary and legally indefensible."),
+KP("Step 2 — Communicate Standards"),
+B("Explicit communication at period start: what must be achieved, how measured (KPIs/OKRs/behaviours), what consequences different performance levels carry. Lack of communication leads to employee surprise and grievances."),
+KP("Step 3 — Measure Actual Performance"),
+B("Systematic data collection throughout: quantitative metrics (sales vs target, error rates), Critical Incident records, 360-degree feedback data, self-assessment. Data must be objective, documented and comprehensive — covering full period to avoid recency bias."),
+KP("Step 4 — Compare Actual vs Standards"),
+B("Reveals: objectives fully achieved (reward/recognition), partially achieved (improvement plan), not achieved (root cause analysis needed), exceeded (stretch goals/advancement consideration). Comparison must be evidence-based."),
+KP("Step 5 — Performance Review Discussion"),
+B("Formal, private, structured dialogue. Best practice: advance scheduling, genuine dialogue (not one-way), acknowledge strengths before gaps, behavioural focus (not personal traits), employee self-assessment incorporated, agreed action steps as outcomes. Manager's EQ and preparation are critical."),
+KP("Step 6 — Corrective Action and Development Planning"),
+B("PIP (Performance Improvement Plan) for underperformers, development goals for average performers, stretch goals for high performers. Plans reviewed at monthly/quarterly check-ins."),
+KP("Step 7 — Link to HR Decisions"),
+B("PA drives: merit increment amounts, bonuses, promotion decisions, succession planning inclusion, training needs identification, disciplinary actions, workforce planning."),
+SSH2("TRADITIONAL METHODS"),
+BL("<b>Graphic Rating Scale:</b> Most widely used. Rates traits on 1-5 scale. Simple, cheap, comparable. Limitations: halo effect, leniency/strictness bias, central tendency, recency bias"),
+BL("<b>Ranking:</b> Best to worst overall. Simple. Limitations: no criteria, no degree info, demoralising"),
+BL("<b>Paired Comparison:</b> One-on-one comparisons — winner of most comparisons ranks highest. Impractical for large groups: n(n-1)/2 comparisons"),
+BL("<b>Forced Distribution (Bell Curve — Jack Welch/GE):</b> Top 20%, middle 70%, bottom 10%. Prevents leniency bias. Unfair in high-performing teams, destroys cohesion"),
+BL("<b>Critical Incident:</b> Year-round log of specific notable behaviours. More objective. Time-consuming, recency bias risk"),
+BL("<b>Essay:</b> Free-form narrative. Comprehensive but subjective, uncomparable"),
+BL("<b>Checklist:</b> YES/NO behavioural statements. Simple. No degree captured"),
+BL("<b>MBO (Peter Drucker, 1954):</b> Joint SMART goal setting; evaluation against mutually agreed targets. High ownership, objectivity, most widely used modern-traditional method"),
+SSH2("MODERN METHODS"),
+BL("<b>360-Degree Feedback:</b> Self + Superior + Subordinates + Peers + Customers. Most comprehensive, multi-perspective, reduces bias. Requires trust culture"),
+BL("<b>Assessment Centres:</b> In-basket, group discussion, role play, psychometrics over 1-2 days, multiple trained assessors. Most accurate for managerial potential. Expensive"),
+BL("<b>BARS:</b> Behavioural examples anchor each rating point. Objective and specific. Expensive to develop"),
+BL("<b>Balanced Scorecard (Kaplan & Norton, 1992):</b> Financial + Customer + Internal Processes + Learning & Growth. Holistic and strategic"),
+BL("<b>OKRs:</b> Ambitious Objectives + measurable Key Results. Quarterly, transparent, aspirational. Google/Intel/Microsoft"),
+SSH2("TRADITIONAL vs MODERN COMPARISON"),
+BL("<b>Focus:</b> Traditional = past performance | Modern = future development"),
+BL("<b>Frequency:</b> Traditional = annual | Modern = continuous or quarterly"),
+BL("<b>Rater:</b> Traditional = single (manager) | Modern = multiple sources (360-degree)"),
+BL("<b>Employee Involvement:</b> Traditional = low | Modern = high (MBO, OKRs — joint goal setting)"),
+BL("<b>Objectivity:</b> Traditional = lower (subjective trait ratings) | Modern = higher (behavioural anchors, data-driven)"),
+BL("<b>Best for:</b> Traditional = operational/clerical roles, lower cost | Modern = managerial/professional/leadership roles"),
+B("Most effective organisations use hybrid systems: OKRs/MBO for goal-setting, 360-degree for development, BARS for operational evaluation, BSC for strategic review — combined with continuous coaching and HR analytics for real-time performance data."),
+NOTE("Drucker = MBO. Kaplan & Norton = BSC. Jack Welch at GE = Bell Curve/Forced Distribution. Google/Intel = OKRs. Most comprehensive = 360-degree. Most accurate for managerial = Assessment Centres. Most widely used traditional = Graphic Rating Scale.")])
+
+# ═══════════════════════════════════════════════════════════════════════
+# MODULE 3 — MAY 2023
+# ═══════════════════════════════════════════════════════════════════════
+mod_header(3,"MAY 2023 PAPER","B.Tech (CE/IT/CSE(AIML)) VIth Semester | OEC-CS-602-I | Max Marks: 75")
+part_label("PART-A — Short Answer Questions (1.5 Marks Each)")
+
+may23_a=[
+("1(a)","Describe ways HRM uses HRIS to provide information and services efficiently.",1.5,"May 2023","Topic 6: HRIS (Mod 1)","HRIS components; Efficiency uses; Benefits for HR administration",
+[SH("HRM Uses of HRIS"),
+B("HRM uses HRIS in multiple ways for efficiency: (1) <b>Employee Database</b> — centralised, instant-access records eliminating paper; (2) <b>Payroll Automation</b> — auto-calculates salaries, TDS, PF/ESI, generates payslips without manual work; (3) <b>ATS for Recruitment</b> — AI screens resumes, schedules interviews, manages offer letters; (4) <b>LMS for Training</b> — tracks e-learning completions, certifications, compliance training; (5) <b>HR Analytics</b> — real-time dashboards on attrition, diversity, recruitment ROI; (6) <b>Compliance Management</b> — auto-generates PF/ESI/TDS statutory reports and compliance alerts; (7) <b>Self-Service Portal</b> — employees access payslips, apply leave, update data independently — dramatically reducing HR admin workload; (8) <b>Performance Management</b> — manages goals, appraisal cycles and 360-degree feedback. HRIS transforms HR from paper administration to strategic digital management. Examples: SAP SuccessFactors, Workday, Darwinbox.")]),
+
+("1(b)","How HRM can promote ethical behaviour?",1.5,"May 2023","Topic 9: Ethics & CSR (Mod 4)","Code of Ethics; Ethics Training; Whistle-blower protection; Transparent PA; Equal pay; Tone from top; POSH Act",
+[SH("How HRM Promotes Ethical Behaviour"),
+B("HRM promotes ethics through: (1) <b>Code of Ethics</b> — formal written document defining acceptable/unacceptable behaviour communicated at induction; (2) <b>Ethics Training</b> — regular workshops on anti-discrimination, data privacy (GDPR/PDPA), POSH compliance, labour law; (3) <b>Whistle-blower Protection</b> — anonymous safe reporting channels (ethics hotlines) without retaliation fear; (4) <b>Transparent Recruitment and Appraisal</b> — objective, documented, auditable processes preventing discrimination; (5) <b>Equal Pay Enforcement</b> — Equal Remuneration Act 1976 compliance, regular pay equity audits; (6) <b>Ethical Leadership (Tone from Top)</b> — ensuring top management models ethical behaviour since employees emulate leaders; (7) <b>POSH Act Compliance</b> — ICC formation, mandatory training, impartial harassment investigation; (8) <b>Ethics Committee</b> — governance body reviewing dilemmas and enforcing standards. HR is the guardian of workplace ethics — its own processes must exemplify the values it promotes.")]),
+
+("1(c)","Write a short note on e-recruitment.",1.5,"May 2023","Topic 1: Recruitment (Mod 2)","E-recruitment definition; Methods; Advantages; Disadvantages",
+[SH("E-Recruitment"),
+B("E-Recruitment uses internet-based technologies to attract, source, screen and manage job applicants. Methods: (1) Online Job Portals — Naukri.com, LinkedIn, Indeed, Monster; (2) Company Career Websites; (3) Social Media — LinkedIn (professional), Instagram/Twitter (employer branding, younger candidates); (4) ATS — AI auto-screens and ranks resumes; (5) AI Chatbot Interviews — HireVue, Mya conduct asynchronous initial screening; (6) Video AI — analyses responses, tone, expressions; (7) Virtual Campus Drives — online college recruitment. <b>Advantages:</b> Massive geographic reach (global pool), 24/7 job posting, fast processing of thousands of applications, lower cost-per-hire, real-time analytics. <b>Disadvantages:</b> Impersonal for candidates, information overload (thousands of applications), digital divide (excludes non-digital candidates), ATS bias against unconventional resumes, risk of keyword gaming.")]),
+
+("1(d)","Write a note on P-O fit and P-J fit during the employee selection process.",1.5,"May 2023","Topic 2: Selection (Mod 2)","P-O Fit definition; P-J Fit definition; Assessment methods; Impact on retention and performance",
+[SH("P-O Fit and P-J Fit"),
+B("<b>P-O Fit (Person-Organisation Fit)</b> is the compatibility between an individual's values, beliefs, personality and goals with the organisation's culture, values and work environment. High P-O fit means the employee genuinely resonates with what the company stands for. Assessed through: values-based interview questions, cultural fit discussions, informal team interactions. High P-O fit leads to higher satisfaction, stronger organisational commitment and significantly lower voluntary turnover."),
+B("<b>P-J Fit (Person-Job Fit)</b> is the match between an individual's KSAs, experience and personality with the specific requirements of the job. Assessed through: technical tests, structured job-specific interviews, work sample tests, Job Specification comparison. High P-J fit produces higher immediate performance, faster ramp-up and lower job-related stress."),
+B("<b>Complementary:</b> High P-J without P-O = technically excellent but culturally disruptive. High P-O without P-J = culturally aligned but technically incompetent. Ideal hire has BOTH. Selection process should explicitly assess both dimensions.")]),
+
+("1(e)","What are the similarities and differences between training and development?",1.5,"May 2023","Topic 1: Training Process (Mod 3)","Training definition; Development definition; Similarities; Differences: focus, time horizon, beneficiaries, methods, purpose",
+[SH("Training vs Development"),
+B("<b>Similarities:</b> Both are planned, systematic learning processes; both improve employee performance; both require needs analysis; both are core HR functions; both deliver positive ROI when well-designed."),
+BL("<b>Focus:</b> Training = current job skills (WHAT employee does NOW). Development = future capabilities (HIGHER roles and future challenges)"),
+BL("<b>Time Horizon:</b> Training = short-term (weeks to months). Development = long-term (months to years)"),
+BL("<b>Beneficiaries:</b> Training = operative, technical and junior employees. Development = managers, specialists and high-potential employees"),
+BL("<b>Methods:</b> Training = job-specific (coaching, vestibule, workshops, simulations). Development = broader (MBA programmes, mentoring, executive education, leadership assignments, cross-functional rotations)"),
+BL("<b>Purpose:</b> Training = fix specific identified skill gap for current role performance. Development = grow overall potential and capability for future leadership"),
+NOTE("Example training: Sales rep trained in new product features for launch. Example development: Sales rep enrolled in MBA + cross-functional projects to prepare for future Regional Manager role.")]),
+
+("1(f)","Explain the purpose of the employee handbook and what it should include?",1.5,"May 2023","Topic 3: Induction (Mod 2)","Purpose: welcome, inform, set expectations, legal protection; Contents: 10 categories",
+[SH("Employee Handbook"),
+B("The Employee Handbook is a comprehensive written document provided to every new employee during induction — the definitive reference guide to policies, rules, culture and resources."),
+B("<b>Purpose:</b> (1) Welcome and Orient — reduces onboarding anxiety; (2) Set Expectations — communicates behavioural standards, attendance, professionalism; (3) Inform about Rights and Benefits — leave, compensation, grievance mechanism; (4) Legal Protection — acknowledged-in-writing handbook protects organisation in disciplinary proceedings."),
+B("<b>Contents:</b> Company Overview (history, vision, mission, values, structure); HR Policies (attendance, leave types, working hours, WFH, dress code); Compensation and Benefits (pay structure, PF/ESI, health insurance, ESOP overview); Code of Conduct (professional behaviour, social media policy, conflict of interest); Anti-Harassment Policy (POSH Act 2013 — zero tolerance, ICC information, reporting mechanism); Disciplinary Procedures (verbal warning → written → suspension → termination); IT and Data Security Policy; Grievance Mechanism (step-by-step process); Safety and Emergency Procedures; Acknowledgement Page (employee signs confirming receipt and understanding).")]),
+
+("1(g)","Discuss the importance of onboarding and socialization.",1.5,"May 2023","Topic 3: Placement, Induction & Socialization (Mod 2)","Onboarding definition; Socialization definition; Van Maanen & Schein 3 stages; Importance: 5 points",
+[SH("Importance of Onboarding and Socialization"),
+B("<b>Onboarding</b> (Induction/Orientation) is the formal process of welcoming new employees — providing information, tools, relationships and cultural understanding to become effective, engaged members quickly. <b>Socialization</b> is the broader ongoing process of learning the values, norms, culture and informal rules of the organisation. Van Maanen & Schein's 3 Stages: Pre-arrival (prior experience and expectations) → Encounter (confronting the real organisation — possible reality shock) → Metamorphosis (adjusting and becoming a productive, accepted member)."),
+B("<b>Importance:</b>"),
+BL("<b>Faster Productivity:</b> Well-onboarded employees contribute meaningfully within weeks, not months — clarity of role, tools and relationships eliminates confusion delay"),
+BL("<b>Reduced Early Turnover:</b> Most first-year departures occur within 90 days — almost all due to poor onboarding. Genuine welcome creates early commitment that dramatically reduces costly early attrition"),
+BL("<b>Better Engagement:</b> Employees welcomed, informed and valued from day one are significantly more engaged and organisationally loyal"),
+BL("<b>Fewer Mistakes:</b> Clear communication of rules, safety procedures and expectations prevents expensive early errors"),
+BL("<b>Cultural Alignment:</b> Onboarding embeds values, work norms and expected behaviours from the first day — shaping how new employees approach their work throughout their tenure")]),
+
+("1(h)","Differentiate strategic HRM from traditional HRM.",1.5,"May 2023","Topic 2: Strategic HRM (Mod 1)","Traditional: operational, reactive, cost centre; Strategic: proactive, business-aligned, value creator; Dave Ulrich; RBV",
+[SH("Strategic HRM vs Traditional HRM"),
+B("<b>Traditional HRM</b> was administrative and operational: maintaining records, payroll, compliance, reactive problem-solving, independently from business strategy, viewed as a cost centre, short-term tactical decisions. The HR department was a support function — important for compliance but not competitive advantage."),
+B("<b>Strategic HRM</b> repositions HR as a proactive, long-term competitive advantage driver:"),
+BL("<b>Orientation:</b> Traditional = reactive (responds to problems). Strategic = proactive (anticipates future people needs from business plans)"),
+BL("<b>Role:</b> Traditional = administrative expert, rule enforcer. Strategic = strategic partner + change agent + employee champion (Ulrich's 4 roles, 1997)"),
+BL("<b>Focus:</b> Traditional = compliance and cost minimisation. Strategic = competitive advantage through talent, innovation and culture"),
+BL("<b>Time Horizon:</b> Traditional = short-term operational. Strategic = long-term aligned with 3-5 year business strategy"),
+BL("<b>View of employees:</b> Traditional = labour cost to control. Strategic = human capital assets (Resource-Based View — Barney, 1991: employees are unique, valuable, rare and inimitable — sustained competitive advantage)"),
+NOTE("SHRM underpinned by: Dave Ulrich's Strategic Partner role (1997) | RBV (Barney, 1991) | HPWS (High-Performance Work Systems — bundles of HR practices that together create high-performance culture).")]),
+
+("1(i)","Differentiate between job evaluation and job analysis.",1.5,"May 2023","Topics 4 & 6: Job Analysis and Evaluation (Mod 2)","JA definition; JE definition; Comparison; JA feeds JE relationship",
+[SH("Job Analysis vs Job Evaluation"),
+B("<b>Job Analysis</b> systematically studies and collects information about duties, responsibilities, working conditions, qualifications and relationships of a specific job. Purpose: understand WHAT the job involves. Output: JD (Job Description) + JS (Job Specification). Methods: observation, interviews, questionnaires, log records. Used for: recruitment, selection, training, performance standards, compensation."),
+B("<b>Job Evaluation</b> systematically determines the relative worth of jobs in relation to each other — for establishing a rational pay structure. Purpose: determine WHAT THE JOB IS WORTH. Output: job grades and pay bands. Methods: Ranking, Classification, Factor Comparison, Point Method. Used for: pay structure design and external benchmarking."),
+BL("<b>Purpose:</b> JA = understand job content | JE = determine job worth"),
+BL("<b>Output:</b> JA = JD + JS | JE = pay grades and compensation structure"),
+BL("<b>Focus:</b> JA = job content (what and how) | JE = job value (how much to pay)"),
+BL("<b>Sequence:</b> Job Analysis must PRECEDE Job Evaluation — JD and JS from JA are primary inputs into JE"),
+NOTE("JA is the INPUT to JE. Without accurate job analysis, job evaluation cannot be conducted fairly. Both processes use Flippo's definitions. JE assesses the JOB, not the person doing it.")]),
+
+("1(j)","Write a note on ESOP.",1.5,"May 2023","Topic 8: New Compensation Trends (Mod 3)","ESOP definition; Vesting schedule; Attraction role; Retention role (golden handcuffs); Types; Indian examples",
+[SH("Employee Stock Ownership Plan (ESOP)"),
+B("ESOP grants employees the right to purchase company shares at a predetermined exercise price — below market price — at a future date. Particularly powerful in tech companies, startups and high-growth organisations."),
+B("<b>How it works:</b> Options granted with vesting schedule (e.g., 4-year with 1-year cliff: 25% vest at year 1, remainder vest monthly over 3 years). After vesting, employees exercise options — paying exercise price and receiving shares at current market value."),
+B("<b>Attraction Role:</b> Cash-constrained startups use ESOPs as salary substitutes — offering a share in future value creation. 'Lower salary now; become wealthy when company succeeds.' Early Infosys, Flipkart, Swiggy, Zomato employees became multi-millionaires at IPO/acquisition."),
+B("<b>Retention Role (Golden Handcuffs):</b> Vesting schedules create powerful incentives to stay. Employee with Rs 50 lakh in unvested options cannot afford to leave — the unvested stock is 'golden handcuffs.' Longer tenure = more vesting = more wealth."),
+B("<b>Alignment:</b> ESOP holders want share price to rise — they make decisions creating long-term value. Directly aligns individual financial interests with organisational success."),
+B("<b>Types:</b> ESOPs (options to buy), RSUs (Restricted Stock Units — actual shares after vesting), Phantom Stocks (cash equivalent to price appreciation), SARs (Stock Appreciation Rights).")]),
+]
+
+for args in may23_a:
+    Q(*args)
+
+st.append(sp(8))
+part_label("PART-B — Detailed Answer Questions (May 2023)")
+
+Q("2","What is human resource planning? Explain various types of labour demand forecasting methods.",15,"May 2023","Topic 5: HR Planning (Mod 1)","HRP definition; Significance; 8-step process; 7 demand forecasting methods in depth; Comparison",
+[SH("HR Planning and Labour Demand Forecasting"),
+SSH2("DEFINITION"),
+B("Human Resource Planning (HRP) is the systematic, proactive process of ensuring the right number of employees with right skills, competencies and experience are available at the right time, place and cost to fulfil strategic objectives. Formula: HR Gap = Future Demand − Current Internal Supply. HRP bridges business strategy and human capital strategy."),
+SSH2("SIGNIFICANCE"),
+BL("Prevents costly talent shortages and expensive last-minute emergency hiring"),
+BL("Prevents labour surplus and associated redundancy costs"),
+BL("Translates business strategy into people requirements — ensures readiness"),
+BL("Reduces costs through proactive internal talent identification"),
+BL("Enables planned training — gaps identified early"),
+BL("Facilitates career development and succession planning"),
+SSH2("8-STEP HRP PROCESS"),
+B("(1) Analyse Organisational Goals; (2) Audit Current HR (skills inventory); (3) Forecast HR Demand; (4) Forecast HR Supply; (5) Identify Gap (deficit → recruit/train; surplus → VRS/redeploy); (6) Formulate Action Plan; (7) Implement; (8) Monitor and Control (quarterly HRIS dashboards)."),
+SSH2("LABOUR DEMAND FORECASTING METHODS"),
+SSH2("A. QUALITATIVE METHODS"),
+KP("1. Managerial Judgment"),
+B("Most widely used, simplest method. Department managers and senior HR estimate future needs from direct experience, business knowledge and operational intuition. Two approaches: Bottom-up (each department estimates → aggregated to organisational level) and Top-down (senior management estimates organisation level → broken down to departments). <b>Advantages:</b> Fast, low cost, captures qualitative intelligence not in historical data, easy to communicate. <b>Limitations:</b> Entirely dependent on quality and objectivity of individual manager judgment — systematically biased by optimism, departmental politics or experience gaps. Best for: small organisations, first-pass estimates, complement to quantitative methods."),
+KP("2. Delphi Technique"),
+B("A sophisticated structured expert consensus process. Facilitator identifies 8-15 HR experts and senior departmental heads as panellists. Round 1: each expert independently provides written anonymous forecast. Facilitator compiles into statistical summary (median, range, outlier rationale) — circulated anonymously. Round 2: experts revise in light of collective input. Continues 3-5 rounds until consensus (estimates cluster in narrow range). Anonymity eliminates groupthink and dominant-individual bias — genuine independent reasoning converges to a well-grounded consensus. <b>Advantages:</b> Eliminates bias, handles situations without historical data, builds systematic expert consensus. <b>Limitations:</b> Time-consuming, requires skilled facilitation, needs willing participants. Best for: long-range strategic forecasting, novel situations (new industries, emerging roles), technology-driven positions without historical precedent."),
+SSH2("B. QUANTITATIVE METHODS"),
+KP("3. Trend Analysis / Time Series Analysis"),
+B("Examines 5-10 years of historical employment data and extrapolates the observed trend into the future. Example: if a software company grew its developer workforce 15% annually for 6 years, forecast projects 15% future growth. Different growth rates can be applied to different job categories. <b>Advantages:</b> Objective, data-based, quick, easy to understand. <b>Limitations:</b> Assumes future mirrors past — breaks down when conditions change significantly (technological disruption, market saturation, strategic pivot). Best for: stable industries with consistent historical patterns, short-to-medium range."),
+KP("4. Regression Analysis"),
+B("Identifies mathematical relationship between a business 'driver' variable and HR headcount as the 'dependent' variable. Process: collect historical data on both business driver (sales, production) and HR headcount; run regression to find equation (HR = a + b × Sales Revenue); use equation with future business forecasts to predict HR. Example: every Rs 10 crore annual sales increase requires approximately 45 additional frontline employees. Multiple regression uses several drivers simultaneously for improved accuracy. <b>Advantages:</b> Statistically validated, captures complex relationships, objective. <b>Limitations:</b> Assumes historical relationship continues — breaks down if technology changes the productivity-headcount ratio or business models change."),
+KP("5. Work Load / Work Study Analysis"),
+B("Formula: Employees Required = Total Planned Workload ÷ Standard Output per Employee per Period, then add absenteeism/leave/training allowances. Worked Example: Bank plans 50 new branches each needing loan officers processing 60 applications per month. Monthly workload = 50 × 60 = 3,000 applications. If each officer handles 60/month = 3,000 ÷ 60 = 50 officers. Add 15% allowance = 58 officers. <b>Advantages:</b> Precise, directly tied to operational plans, transparent, easy for managers to verify. <b>Limitations:</b> Difficult for knowledge work (how to measure output of lawyers, researchers, strategists); requires accurate work measurement data. Best for: operational roles with measurable, standardised output."),
+KP("6. Ratio Analysis"),
+B("Uses historical staffing ratios to forecast needs. Common ratios: 1 HR per 75 employees, 1 IT support per 75 employees, 1 safety officer per 300 factory workers, 1 accountant per Rs 5 crore revenue managed. Example: company growing from 500 to 1,500 employees over 3 years. Using 1 HR per 75: current = 500/75 = 7; future = 1,500/75 = 20; hire 13 additional HR over 3 years. <b>Advantages:</b> Simple, quick, understandable, useful for initial estimates. <b>Limitations:</b> Historical ratios may be outdated if technology or organisational design has changed the optimal staffing ratio."),
+KP("7. Succession Planning Charts"),
+B("Used specifically for senior and critical positions. HR maintains visual succession matrices showing: each critical position, current incumbent's tenure/succession timeline, potential internal successors identified through potential appraisals, and each successor's readiness (Ready Now, Ready in 1-2 years, Ready in 3-5 years, No Ready Successor — recruit externally). The 9-Box Grid (Performance vs Potential) provides the systematic candidate classification framework. Ensures specific key leadership vacancies are anticipated years ahead and successors are developed proactively."),
+SSH2("METHOD COMPARISON AND SELECTION"),
+B("Method selection depends on: data availability (quantitative needs historical data), time horizon (long-range = Delphi; short-range = trend/ratio), role type (operational = work load; managerial = succession), organisational size (small = managerial judgment; large = regression), stability (stable = trend; volatile = Delphi). Best practice: combine methods — Delphi or Managerial Judgment for senior/specialist roles; Trend + Regression for operational roles; Work Load Analysis for quantifiable work; Ratio Analysis for quick estimates; Succession Charts for leadership pipeline. The art is combining qualitative expert judgment with quantitative statistical analysis."),
+NOTE("7 Forecasting Techniques: Managerial Judgment, Delphi (qualitative); Trend, Regression, Work Load, Ratio Analysis (quantitative); Succession Charts (senior roles). Work Load Formula: Employees = Total Workload ÷ Output per Employee.")])
+
+Q("3","Outline the steps in the selection process and explain which steps you believe are the most important and why?",15,"May 2023","Topic 2: Selection (Mod 2)","Selection definition; 8 steps; Critical analysis of most important steps; Assessment Centre; STAR method; Legal aspects",
+[SH("Selection Process — Steps and Critical Analysis"),
+SSH2("DEFINITION"),
+B("Selection is the systematic process of choosing the most suitable candidate from the recruitment pool. It is a NEGATIVE process — unsuitable candidates eliminated at each stage. The cost of a wrong hire (re-recruitment, training, performance loss, team disruption, legal exposure) far exceeds the cost of thorough selection. Every investment in selection quality pays compounding long-term dividends."),
+SSH2("8 STEPS"),
+BL("<b>Step 1 — Preliminary Screening:</b> CV review against minimum JS requirements. Modern ATS auto-screens using keyword algorithms — processing thousands instantly. Output: preliminary shortlist."),
+BL("<b>Step 2 — Selection Tests:</b> Intelligence Tests (IQ, reasoning), Aptitude Tests (numerical, verbal potential), Achievement Tests (coding, accounting, typing — current proficiency), Personality Tests (MBTI, Big Five/OCEAN), Psychometric Tests (comprehensive psychological assessment for managerial roles)."),
+BL("<b>Step 3 — Employment Interview:</b> Structured (standardised questions — reduces bias), Behavioural/STAR (past behaviour = best predictor of future performance), Panel (multiple perspectives — reduces individual bias), Stress (pressure testing for high-stress roles), Video/AI (asynchronous, mass initial screening)."),
+BL("<b>Step 4 — Reference and Background Checks:</b> Previous employment verification (dates, role, performance, departure reason), educational qualification confirmation, criminal record, certifications. Most undervalued step — provides real-world performance evidence no interview can replicate."),
+BL("<b>Step 5 — Medical Examination:</b> Physical fitness for specific job demands. Mandatory for armed forces, mining, aviation, healthcare. Cannot discriminate against candidates with disabilities who can perform essential functions with accommodation."),
+BL("<b>Step 6 — Selection Decision:</b> Selection committee reviews ALL evidence — test scores, interview evaluations, reference outcomes — and makes final documented decision using structured scoring matrices."),
+BL("<b>Step 7 — Job Offer:</b> Formal written offer — job title/grade, CTC breakdown, joining date, reporting structure, location, probation, notice period."),
+BL("<b>Step 8 — Contract and Onboarding:</b> Employment contract — duties, compensation, NDA, IP, non-compete, disciplinary procedures. Followed by Placement, Induction and Socialization."),
+SSH2("MOST IMPORTANT STEPS — CRITICAL ANALYSIS"),
+KP("1. Employment Interview (Step 3) — Most Critical for Interpersonal and Cultural Assessment"),
+B("The only stage directly assessing communication, motivation, cultural alignment and interpersonal qualities that determine whether someone will thrive in the specific team and environment. A Structured Behavioural Interview using STAR (Situation-Task-Action-Result — past behaviour predicts future performance) combined with a Panel Interview format provides the most reliable interactive assessment. Assessment Centres — multi-exercise, multi-assessor evaluations over 1-2 days (in-basket, group discussion, role play, psychometrics) — represent the gold standard for managerial roles where wrong hire cost is highest. Organisations must invest in interviewer training — uncalibrated interviewers with unstructured conversations introduce massive subjective bias."),
+KP("2. Reference and Background Checks (Step 4) — Most Undervalued Critical Step"),
+B("Most frequently treated as a bureaucratic formality, but represent the single most objective source of real-world performance evidence available. Brilliant interview performers with histories of misconduct, poor performance or dishonesty at previous employers are revealed only through thorough reference conversations. Studies show resume fraud is more prevalent than HR professionals expect. Authentic reference checks — actual performance discussions, not just employment date confirmation — reveal the candidate's professional reality. Background checks for criminal records are a fundamental legal duty of care (negligent hiring liability) especially for roles involving children, finances or security."),
+KP("3. Selection Decision (Step 6) — Synthesis Step Where All Evidence Converges"),
+B("All effort invested in previous steps translates into a hire only through a quality decision. Best practices: structured scoring matrix weighting criteria by importance; diverse committee perspectives; evidence-focused discussion (not subjective impressions); documented rationale for legal defensibility; guard against confirmation bias (favouring candidates resembling successful past hires)."),
+B("The selection process is most effective when all eight steps are systematically executed, when interviewers are properly trained, when reference checks are genuinely conducted, and when the selection decision integrates all evidence into a well-documented, evidence-based, legally defensible choice."),
+NOTE("STAR Method: Situation, Task, Action, Result. Panel interviews + structured scoring = highest-value interview investments. Assessment Centres = most accurate for senior/managerial selection. Reference checks = most undervalued but highest real-world-evidence step in most organisations.")])
+
+Q("4","Discuss the ADDIE model of training design. How does the model connect training with strategy?",15,"May 2023","Topic 3: ADDIE Model (Mod 3)","ADDIE: 5 phases in depth; TNA in Analysis; Andragogy in Design; Kirkpatrick in Evaluation; Strategic connection: Analysis, Design, Evaluation, Feedback Loop phases",
+[SH("ADDIE Model of Training Design and Strategic Connection"),
+SSH2("INTRODUCTION"),
+B("ADDIE is the most widely used Instructional Design framework — transforming business performance requirements into effective, measurable learning experiences. Five sequential, iterative phases: Analysis, Design, Development, Implementation, Evaluation. Developed by Florida State University in the 1970s for the US Army, it has become the universal corporate training development standard."),
+SSH2("PHASE 1 — ANALYSIS"),
+B("The diagnostic foundation — without it, all subsequent phases risk addressing the wrong problem. Three TNA levels:"),
+BL("<b>Organisational Analysis:</b> What are the business strategic goals? What training resources and budget exist? What regulatory compliance training is mandatory? This level ensures training priorities directly support business strategy."),
+BL("<b>Task/Operational Analysis:</b> What tasks does the job require? What KSAs are needed? Where are the performance gaps? This level produces the training content blueprint."),
+BL("<b>Individual Analysis:</b> Which specific employees need training in which areas? Differentiated by individual performance data, manager input, self-assessments."),
+B("Analysis methods: performance appraisal data, direct observation, individual/group interviews, customer feedback, exit interview review, skills gap assessments. Output: TNA Report specifying who needs what training, why, and what business benefit is expected."),
+SSH2("PHASE 2 — DESIGN"),
+B("Translates TNA findings into a learning blueprint. Key decisions:"),
+BL("<b>SMART Learning Objectives:</b> 'After training, all front-line managers will correctly apply the 5-step disciplinary interview process in 4 of 5 assessed role-play scenarios.' Every subsequent decision references these objectives."),
+BL("<b>Method Selection (Critical):</b> Match method to objective — technical procedure training: OJT, simulation, vestibule; interpersonal skills: role play, behavioural simulation; theoretical knowledge: lecture, case study, e-learning; complex decision-making: business games, in-basket exercises; leadership development: Assessment Centre, executive coaching."),
+BL("<b>Andragogy Principles (Malcolm Knowles):</b> Adults are self-directed (involve them in design), experience-based (connect to prior knowledge), purpose-driven (explain the WHY before the WHAT), problem-centred (use real work problems as learning vehicles)."),
+BL("<b>Content Sequencing:</b> Simple to complex, known to unknown, theory before practice, foundational before advanced."),
+SSH2("PHASE 3 — DEVELOPMENT"),
+B("Creates actual training materials: facilitator guides, participant workbooks, slide presentations, e-learning modules (Articulate Storyline, Adobe Captivate), case studies, role play scripts, video content, pre/post assessments, job aids (quick-reference cards, decision flowcharts). Quality control: pilot test with representative learner sample before full rollout. SME review for technical accuracy."),
+SSH2("PHASE 4 — IMPLEMENTATION"),
+B("Programme delivery: scheduling sessions across groups (respecting operational constraints), facilitating with skill and energy (creating psychologically safe environments), managing logistics (technology, materials, room setup), adapting delivery to participant responses in real-time. Effective implementation requires skilled facilitators, not just subject matter experts."),
+SSH2("PHASE 5 — EVALUATION (KIRKPATRICK'S 4-LEVEL MODEL)"),
+BL("<b>Level 1 — Reaction:</b> Satisfaction surveys immediately after — content relevance, trainer quality, pacing"),
+BL("<b>Level 2 — Learning:</b> Pre/post tests — did participants acquire targeted KSAs?"),
+BL("<b>Level 3 — Behaviour:</b> Supervisor observation 3-6 months after — are they applying skills on the job? Critical: many programmes show good Level 2 but poor Level 3 transfer"),
+BL("<b>Level 4 — Results:</b> Business KPIs 6-12 months after — measurable improvements in sales, quality, productivity, safety"),
+BL("<b>Phillips Level 5 — ROI:</b> [(Benefits − Cost) ÷ Cost] × 100"),
+SSH2("HOW ADDIE CONNECTS TRAINING WITH STRATEGY"),
+KP("1. Analysis — Strategic Alignment at Source"),
+B("Organisational TNA begins with the business strategic plan. Training priorities set by strategic necessity: internationalisation → cross-cultural communication training; digital transformation → data analytics training; customer experience strategy → service excellence training. Every training investment addresses a strategic business requirement."),
+KP("2. Design — Strategic Competency Focus"),
+B("Learning objectives written in terms of strategic competencies: if strategy demands innovation → objectives target creative problem-solving and design thinking; if strategy demands digital mastery → objectives target specific platform proficiencies and data interpretation."),
+KP("3. Evaluation — Strategic Outcome Measurement"),
+B("Level 4 evaluation measures the same metrics defining strategic success — sales growth, quality improvement, customer satisfaction. Training that measurably moves strategic KPIs has demonstrated its strategic value directly in the language of business."),
+KP("4. Feedback Loop — Continuous Strategic Adaptation"),
+B("ADDIE is intentionally iterative. As business strategy evolves (new markets, technologies, competition), evaluation findings feed into new Analysis — continuously updating training priorities to match evolving strategic requirements. This loop prevents programmes from becoming outdated."),
+NOTE("ADDIE: Analysis → Design → Development → Implementation → Evaluation. Analysis = TNA (3 levels). Design = SMART objectives + Andragogy (Knowles). Evaluation = Kirkpatrick's 4 Levels + Phillips ROI. ADDIE is a strategic alignment mechanism, not just a training checklist.")])
+
+Q("5","Enlist traditional and modern appraisal methods. Explain the concept of MBO as an appraisal method along with its advantages.",15,"May 2023","Topic 7: PMS (Mod 2)","Traditional: 7 methods; Modern: 5 methods; MBO: Drucker 1954, concept, SMART goals, 6-step process, 7 advantages, 4 limitations; MBO vs OKR comparison",
+[SH("Traditional & Modern Appraisal Methods — MBO in Depth"),
+SSH2("TRADITIONAL METHODS"),
+BL("<b>1. Graphic Rating Scale:</b> Most widely used. Rates traits (quality, initiative, teamwork) on 1-5 scale. Simple, cheap, comparable. Limitations: halo effect, leniency/strictness/central tendency biases"),
+BL("<b>2. Ranking Method:</b> Employees ordered best to worst overall. Simple, fast. Limitations: no criteria, no degree info, demoralising, impractical for large groups"),
+BL("<b>3. Paired Comparison:</b> Each employee compared one-on-one with every other. More systematic. Limitation: n(n-1)/2 comparisons needed — 20 employees = 190 comparisons"),
+BL("<b>4. Forced Distribution/Bell Curve (Jack Welch, GE):</b> Top 20%, middle 70%, bottom 10%. Prevents leniency. Limitations: unfair in high-performing teams, destroys cohesion"),
+BL("<b>5. Critical Incident Method:</b> Year-round log of specific notable positive/negative behaviours. More objective. Limitations: time-consuming, recency bias risk"),
+BL("<b>6. Essay/Narrative Method:</b> Free-form descriptive evaluation. Comprehensive and nuanced. Limitations: subjective, uncomparable"),
+BL("<b>7. Checklist Method:</b> YES/NO behavioural statements. Simple. Limitations: no degree captured"),
+SSH2("MODERN METHODS"),
+BL("<b>1. 360-Degree Feedback:</b> Self + Superior + Subordinates + Peers + Customers. Most comprehensive, reduces bias. Requires trust culture"),
+BL("<b>2. Assessment Centres:</b> In-basket + group discussion + role play + psychometrics over 1-2 days. Most accurate for managerial potential. Expensive"),
+BL("<b>3. BARS:</b> Behavioural examples anchor each rating point. Objective, specific. Expensive to develop"),
+BL("<b>4. Balanced Scorecard (Kaplan & Norton, 1992):</b> Financial + Customer + Internal Processes + Learning & Growth. Holistic, strategic"),
+BL("<b>5. OKRs:</b> Ambitious Objectives + measurable Key Results. Quarterly, transparent, aspirational. Google/Intel/Microsoft"),
+SSH2("MBO — MANAGEMENT BY OBJECTIVES — IN DEPTH"),
+SSH2("Concept and Origins"),
+B("MBO was developed by Peter Drucker, introduced in 'The Practice of Management' (1954). Core philosophy: performance is most effectively improved when employees jointly set SMART goals with their manager and are evaluated against those mutually agreed targets — not subjective trait ratings. Joint goal-setting creates ownership; objective evaluation creates fairness. Drucker called it 'Management by Objectives and Self-Control.'"),
+SSH2("6-STEP MBO PROCESS"),
+BL("<b>Step 1 — Organisational Goals:</b> Senior management defines strategic goals — revenue, market expansion, quality, cost reduction"),
+BL("<b>Step 2 — Goal Cascading:</b> Organisational goals broken into departmental objectives"),
+BL("<b>Step 3 — Joint Individual Goal Setting (Most Critical):</b> Manager and employee collaboratively set the employee's SMART objectives — specific, measurable, achievable, relevant, time-bound. The conversation must be genuinely collaborative — employee input respected, not overridden"),
+BL("<b>Step 4 — Action Planning:</b> Employee identifies specific actions, milestones, resources needed for each objective"),
+BL("<b>Step 5 — Regular Monitoring:</b> Monthly or quarterly progress reviews — identify obstacles, provide coaching, adjust plans if circumstances change"),
+BL("<b>Step 6 — Final Review and New Cycle:</b> Period-end evaluation against each stated objective, documentation for HR decisions, new objectives set"),
+SSH2("ADVANTAGES OF MBO"),
+BL("<b>High Employee Ownership and Motivation:</b> 'These are MY goals' — psychological ownership dramatically increases commitment and intrinsic motivation to achieve. Employees who set their own targets work harder to achieve them."),
+BL("<b>Clarity of Expectations:</b> Every employee knows precisely what to achieve and by when — eliminates role ambiguity, reduces anxiety, enables focused effort"),
+BL("<b>Objective Evidence-Based Evaluation:</b> Performance judged against specific, pre-agreed, measurable targets — not subjective managerial impressions. Reduces evaluation bias, improves credibility and legal defensibility"),
+BL("<b>Perfect Goal Alignment:</b> Cascading ensures every individual's objectives support team → departmental → organisational strategic goals — complete vertical alignment"),
+BL("<b>Improved Communication:</b> Mandates regular manager-employee dialogue — improves relationship quality, builds mutual understanding, creates open performance culture"),
+BL("<b>Supports Development:</b> Goal-setting conversations naturally identify development needs — skills required to achieve more challenging future objectives"),
+BL("<b>Motivates High Performance (Locke & Latham Goal-Setting Theory):</b> Specific, challenging goals produce significantly higher performance than vague ('do your best') or easy goals"),
+SSH2("LIMITATIONS OF MBO"),
+BL("Time-intensive — significant manager time for quality conversations, interim reviews, final evaluations across all team members"),
+BL("Goals can become rigid — material business condition changes mid-period make pre-agreed objectives irrelevant or unachievable"),
+BL("Quantitative bias — important qualitative contributions (mentoring, culture building, knowledge sharing) systematically undervalued"),
+BL("Risk of goal gaming — employees deliberately set easy objectives to ensure 100% achievement and high ratings"),
+B("MBO represents the most significant evolution in appraisal philosophy — shifting from 'judging the person' to 'evaluating achievement against agreed goals.' OKRs (Objectives and Key Results, used by Google/Intel) are essentially MBO's 21st-century evolution: more ambitious stretch goals, more transparent (everyone's OKRs publicly visible), more technology-integrated, quarterly rather than annual."),
+NOTE("Peter Drucker developed MBO (1954, 'The Practice of Management'). Goal-Setting Theory (Locke & Latham): specific + challenging goals → highest performance. OKR = MBO + more ambitious + more transparent + more technology-enabled.")])
+
+Q("6(a)","Mention the major differences between international HRM and domestic HRM.",5,"May 2023","Topic 5: IHRM (Mod 4)","IHRM definition; PCN/HCN/TCN; Differences: 7 dimensions; Hofstede; Expatriate management",
+[SH("International HRM vs Domestic HRM"),
+B("International HRM manages human resources across national boundaries — dealing with PCNs (Parent Country Nationals), HCNs (Host Country Nationals) and TCNs (Third Country Nationals) in multiple legal, cultural and economic environments. Domestic HRM manages employees within a single country."),
+BL("<b>Geographic Scope:</b> Domestic = single country, one legal system, one culture. International = multiple countries simultaneously — different laws, cultures, currencies, business norms"),
+BL("<b>Complexity:</b> Domestic = relatively manageable. International = exponentially complex — multiple legal systems, languages, cultures, currency risk, political risk operating simultaneously"),
+BL("<b>HR Functions:</b> Domestic = standard 7 functions. International = standard + expatriate selection/preparation, pre-departure cross-cultural training, international compensation design (COLA, tax equalisation, housing/education allowances), on-assignment family support, repatriation management"),
+BL("<b>Risk:</b> Domestic = lower — one legal system. International = higher — political risk, cultural management failures, high expatriate failure rates (30-50% without proper support)"),
+BL("<b>Labour Laws:</b> Domestic = one national framework. International = simultaneously comply with home AND host country laws — employment contracts, minimum wages, termination procedures, visa/work permits, social security, data privacy (GDPR/PDPA)"),
+BL("<b>Compensation:</b> Domestic = straightforward pay structure in one currency. International = complex multi-component: base salary + COLA + housing + children's education + home leave + hardship premium + tax equalisation"),
+BL("<b>Cultural Sensitivity:</b> Domestic = manage one culture. International = navigate Hofstede's 5 dimensions across multiple national cultures simultaneously"),
+NOTE("PCN = HQ country citizen sent as expat. HCN = host country local employee. TCN = third country citizen in subsidiary. Expatriate failure rate without support: 30-50%. IHRM requires: cultural intelligence, multi-jurisdictional legal expertise, flexible locally-responsive policies.")])
+
+Q("6(b)","What are the major approaches to recruitment in IHRM? Discuss the advantages and disadvantages of each approach.",10,"May 2023","Topic 5: IHRM (Mod 4)","4 staffing approaches: Ethnocentric, Polycentric, Geocentric, Regiocentric; Definition, who recruited, advantages, disadvantages of each; When to use",
+[SH("Recruitment Approaches in International HRM"),
+B("Four major IHRM staffing approaches, each with distinct philosophy and trade-offs:"),
+SSH2("1. ETHNOCENTRIC APPROACH"),
+B("All key subsidiary positions filled with PCNs (Parent Country Nationals — HQ country employees). Belief: home country employees are most reliable, most knowledgeable about culture and practices, best ensure alignment with HQ strategy."),
+BL("<b>Advantages:</b> Direct control and strategic alignment — PCNs represent HQ values and working methods; valuable for transferring proprietary technologies and management approaches to new subsidiaries; critical during startup phase when cultural transplantation from HQ is essential"),
+BL("<b>Disadvantages:</b> Very expensive — expatriate packages cost 2-5x equivalent local salary; high failure rate (30-50%) — cultural adjustment for expats and families; limited career advancement for talented HCNs (glass ceiling effect); host government may pressure for localisation"),
+B("<b>Best for:</b> Startup subsidiaries, proprietary knowledge transfer, tight strategic control requirements."),
+SSH2("2. POLYCENTRIC APPROACH"),
+B("Subsidiary positions filled with HCNs (Host Country Nationals — local citizens). HQ positions continue with PCNs. Each subsidiary managed largely independently by locals who understand local culture, language, legal environment."),
+BL("<b>Advantages:</b> Significantly lower cost — no expatriate allowances; eliminates cultural adjustment problems; local managers communicate in local language and understand local customs; stronger government/business relationships; genuine career opportunities for talented locals"),
+BL("<b>Disadvantages:</b> HCNs may lack understanding of HQ culture and global strategy; 'glass ceiling' phenomenon — HCNs see no path to HQ positions; limits knowledge transfer; may create overly independent subsidiaries drifting from global strategy"),
+B("<b>Best for:</b> Established subsidiaries with abundant local talent, where local government pressures localisation and operational independence is acceptable."),
+SSH2("3. GEOCENTRIC APPROACH"),
+B("Best qualified person for each position globally — regardless of nationality (PCN, HCN or TCN). Nationality is completely irrelevant; only competence, skills and potential matter. Senior positions filled from global talent pool."),
+BL("<b>Advantages:</b> Access to world's best talent for every position; develops truly international management cadre with global experience; eliminates glass ceiling; builds globally cohesive culture; positions company as truly global rather than home-country company with overseas branches"),
+BL("<b>Disadvantages:</b> Most expensive and complex — global talent identification, development and mobility programmes; visa and work permit restrictions may limit TCN placement; complex global compensation administration across tax jurisdictions; requires sophisticated IHRM capability"),
+B("<b>Best for:</b> Truly global organisations with operations across many countries, need for globally cohesive leadership culture, significant investment in global talent development infrastructure."),
+SSH2("4. REGIOCENTRIC APPROACH"),
+B("Geographic middle ground — operations grouped into regions (Asia-Pacific, Europe, Americas, Middle East & Africa). Recruitment primarily within each region — transfers across countries within region, restrictions on cross-regional transfers."),
+BL("<b>Advantages:</b> Balances cost-effectiveness of polycentric with regional integration benefits; managers within region share cultural contexts and often language familiarity; lower relocation costs than global transfers; broader international experience than purely polycentric"),
+BL("<b>Disadvantages:</b> Creates regional silos — limited knowledge transfer between regions; may miss globally talented candidates outside the region; may not develop truly global mindset needed for worldwide leadership"),
+B("<b>Best for:</b> Organisations with strong regional business models where conditions differ significantly across global regions but within-region integration is important."),
+NOTE("4 Approaches: Ethnocentric (PCN-dominant, tight HQ control, expensive), Polycentric (HCN-dominant, local autonomy, cost-effective), Geocentric (best globally, most complex and expensive, most advanced), Regiocentric (regional talent pools, middle ground). Most progressive = Geocentric. Most cost-effective = Polycentric. Best for knowledge transfer = Ethnocentric.")])
+
+Q("7","Explain the roles HRM plays in dealing with current HRM issues such as knowledge management, virtual organisations, and ethics and social responsibility.",15,"May 2023","Topics 6, 8, 9: KM, Virtual Orgs, Ethics & CSR (Mod 4)","Knowledge Management: types, SECI model, HR's role; Virtual Organisations: definition, HR challenges; Ethics: key issues, HR's role; CSR: Carroll's pyramid, HR's CSR role",
+[SH("HRM's Role in Knowledge Management, Virtual Organisations, Ethics and CSR"),
+SSH2("1. KNOWLEDGE MANAGEMENT"),
+SSH2("What is KM?"),
+B("Knowledge Management (KM) is the systematic process of creating, capturing, organising, sharing, applying and retaining organisational knowledge and expertise — so intellectual capital is not lost when people leave, retire or transfer. Three types of knowledge:"),
+BL("<b>Explicit:</b> Formally documented, easily stored/shared — manuals, SOPs, databases, training materials"),
+BL("<b>Tacit:</b> Personal experience-based, hard to articulate — a senior negotiator's instinct, skilled artisan's technique, veteran manager's wisdom. Lives in people's heads — lost when they leave"),
+BL("<b>Embedded:</b> Stored in organisational routines, culture and processes — institutional memory accumulated over decades"),
+B("Nonaka & Takeuchi's SECI Model: Socialisation (T→T: sharing experience through apprenticeship), Externalisation (T→E: converting tacit to documented knowledge), Combination (E→E: combining documented knowledge), Internalisation (E→T: practising documented knowledge until instinctive)."),
+SSH2("HRM's Role in KM"),
+BL("<b>Building KM Culture:</b> Recognition programmes ('Knowledge Champion' awards), linking KM participation to appraisals and promotions. Without HR-driven culture, KM platforms collect digital dust"),
+BL("<b>Knowledge Capture Before Exit:</b> Transfer workshops, documentation sessions, successor shadowing, interview-based extraction before key employees retire or resign"),
+BL("<b>Communities of Practice:</b> Facilitating cross-functional learning communities for regular expertise sharing"),
+BL("<b>After-Action Reviews:</b> Institutionalising structured post-project debriefs — capturing what worked, what didn't, what to do differently"),
+BL("<b>IT Partnership for KM Platforms:</b> Ensuring SharePoint, Confluence, internal wikis and AI knowledge bases are user-friendly, adopted and maintained"),
+BL("<b>Retention of Knowledge Holders:</b> Competitive compensation, development opportunities and recognition for critical knowledge experts — the best KM is keeping knowledge-rich employees"),
+SSH2("2. HRM IN VIRTUAL ORGANISATIONS"),
+SSH2("Definition and Characteristics"),
+B("A Virtual Organisation is technology-enabled, geographically dispersed — members collaborate through digital channels (Zoom, Teams, Slack, Asana) without traditional physical office. Characteristics: location-independent, project-oriented, digital communication as primary medium, output-based performance, self-managed leadership, technology-dependent operations."),
+SSH2("HR's Role in Virtual Organisations"),
+BL("<b>E-Recruitment:</b> Identifying candidates who are self-directed, technologically proficient and productive without physical supervision. All selection conducted virtually — video interviews, online assessments"),
+BL("<b>Virtual Onboarding:</b> Digital orientation, buddy systems, virtual team introductions, 30-60-90 day digital milestone plans — making new employees feel welcomed despite never visiting a physical office"),
+BL("<b>E-Learning:</b> LMS platforms, MOOCs, webinars, virtual workshops — self-paced, accessible 24/7 across time zones"),
+BL("<b>Output-Based PMS:</b> Performance on results — deliverables, quality, deadline adherence, customer satisfaction — not physical presence monitoring. Clear, pre-agreed KPIs essential"),
+BL("<b>Communication and Trust:</b> Explicit digital communication protocols, regular video check-ins, virtual team-building, trust-based management replacing supervisory control"),
+BL("<b>Culture Building:</b> Virtual celebrations, digital recognition programmes, online community events, periodic in-person gatherings — maintaining organisational identity across distance"),
+BL("<b>Legal Compliance:</b> Employees working from different states/countries — complex tax, labour law and data privacy compliance challenges (GDPR, PDPA, local employment regulations)"),
+SSH2("3. ETHICS AND CSR"),
+SSH2("HRM's Role in Workplace Ethics"),
+BL("<b>Workplace Discrimination Prevention:</b> Objective, job-requirement-based hiring; equal pay (Equal Remuneration Act 1976); merit-based promotions; bias-free performance evaluation; anti-discrimination policies"),
+BL("<b>Data Privacy:</b> Ethical policies for monitoring (CCTV, email, biometric), background checks, medical testing; GDPR/PDPA compliance; protecting employee personal data"),
+BL("<b>POSH Act 2013:</b> Mandatory Internal Complaints Committee (ICC), POSH training for all employees, safe reporting channels, impartial complaint investigation"),
+BL("<b>Whistle-blower Protection:</b> Anonymous safe reporting channels (ethics hotlines) without retaliation — legally required and ethically essential"),
+BL("<b>Safety Ethics:</b> Workplace safety obligations. The Bhopal Gas Tragedy (December 3, 1984 — Union Carbide, 4,000+ immediate deaths, 20,000+ over time) is the most sobering reminder of catastrophic consequences of corporate safety ethics failures"),
+BL("<b>Retrenchment Ethics:</b> Adequate notice, fair severance, outplacement assistance, transparent communication, exploring all alternatives before layoffs"),
+SSH2("HRM's Role in Corporate Social Responsibility"),
+B("Carroll's CSR Pyramid: Economic (profitable) → Legal (obey laws) → Ethical (beyond law) → Philanthropic (community). India's Section 135, Companies Act 2013: 2% of 3-year average net profit for eligible companies."),
+BL("<b>Employee Well-being CSR:</b> Extended health insurance, mental health EAPs, flexible work, childcare — treating employees as genuine stakeholders"),
+BL("<b>Diversity and Inclusion:</b> Actively recruiting women, minorities, persons with disabilities, LGBTQ+ employees; building psychologically safe inclusive cultures; publishing D&I data"),
+BL("<b>Fair Employment:</b> Paying above minimum wage, safe conditions, no forced labour or child labour in supply chains, fair termination practices"),
+BL("<b>Community Development:</b> Skill development for local communities, employing local talent, supporting NGOs and education"),
+BL("<b>Environmental Sustainability (Green HRM):</b> Remote work reduces carbon footprint; sustainable office practices; eco-friendly behaviour promotion"),
+BL("<b>Ethical Supply Chain:</b> Ensuring suppliers also follow ethical labour practices — no child labour, forced labour or discrimination throughout the supply chain"),
+NOTE("SECI Model (Nonaka & Takeuchi): Socialisation → Externalisation → Combination → Internalisation. Carroll's CSR Pyramid: Economic → Legal → Ethical → Philanthropic. Section 135, Companies Act 2013: 2% net profit CSR for eligible companies. Bhopal Gas Tragedy (Dec 3, 1984) — worst industrial disaster — quintessential safety ethics failure case.")])
+
+# ═══════════════════════════════════════════════════════════════════════
+# MODULE 4 — MAY 2024
+# ═══════════════════════════════════════════════════════════════════════
+mod_header(4,"MAY 2024 PAPER","B.Tech (CE/CE(HINDI)/CSE(AIML)) Sixth Semester | OEC-CS-602(I) | Max Marks: 75")
+part_label("PART-A — Short Answer Questions (1.5 Marks Each)")
+
+may24_a=[
+("1(a)","Define HRM.",1.5,"May 2024","Topic 1: HRM Concept (Mod 1)","Edwin Flippo definition; Dessler; Purpose; Nature; Scope overview",
+[SH("Define HRM"),
+B("Human Resource Management (HRM) is the process of planning, recruiting, selecting, training, developing, compensating and retaining employees to achieve organisational goals efficiently. Edwin Flippo: 'HRM is the planning, organising, directing and controlling of procurement, development, compensation, integration, maintenance and separation of human resources to the end that individual, organisational and social objectives are accomplished.' Gary Dessler: 'the process of acquiring, training, appraising, compensating employees and attending to their labour relations, health-safety and fairness concerns.' HRM treats employees as the most valuable organisational asset — managing the complete employee lifecycle from hire to retire. It is people-oriented, pervasive, continuous, development-focused, future-oriented, integrative and multidisciplinary.")]),
+
+("1(b)","Define performance appraisal.",1.5,"May 2024","Topic 7: PMS (Mod 2)","PA definition; Objectives; Traditional vs Modern methods overview",
+[SH("Performance Appraisal"),
+B("Performance Appraisal is the systematic evaluation of an employee's job performance by comparing actual performance against pre-defined standards, goals or expected behaviour — and communicating results to the employee with feedback and action plans. It is a core component of the Performance Management System (PMS). Objectives: provide performance feedback; identify training needs; support promotion, increment and transfer decisions; motivate through recognition; support succession planning; document for legal protection. Traditional methods: Graphic Rating Scale, Ranking, Forced Distribution, MBO, Critical Incident. Modern methods: 360-Degree Feedback, Assessment Centres, BARS, Balanced Scorecard, OKRs.")]),
+
+("1(c)","Why HR audit is required?",1.5,"May 2024","Topic 7: HR Audit (Mod 4)","HR Audit definition; Reasons why required; Types; Process",
+[SH("Why HR Audit is Required"),
+B("HR Audit is required because: (1) <b>Legal Compliance:</b> To verify all statutory requirements are fulfilled — minimum wages, PF/ESI, working hours, POSH Committee, employment contracts — avoiding costly legal penalties and prosecution; (2) <b>Identify Gaps:</b> Comparing HR policy vs actual practice reveals inconsistencies and areas needing correction; (3) <b>Assess HR Effectiveness:</b> Measuring whether HR processes (recruitment, training, appraisals) are working as designed; (4) <b>Strategic Alignment:</b> Ensuring HR strategy supports business goals — talent pipeline, leadership bench; (5) <b>Risk Management:</b> Proactively identifying HR risks (pay equity violations, data privacy gaps, key person dependencies) before they become crises; (6) <b>Improve HR Quality:</b> Identifying best practices and areas for continuous improvement; (7) <b>Stakeholder Confidence:</b> Board members, investors and regulators are increasingly examining HR governance quality.")]),
+
+("1(d)","What is succession planning?",1.5,"May 2024","Topic 6: Succession Planning (Mod 3)","Definition; Process: 6 steps; 9-Box Grid; Business continuity",
+[SH("Succession Planning"),
+B("Succession Planning is the proactive strategic process of identifying and developing potential successors for key leadership and critical positions — ensuring business continuity when current incumbents retire, resign or are promoted. Goal: the organisation is never caught without a capable, ready person for any critical role."),
+B("Process: (1) Identify critical positions (CEO, CFO, Head R&D, Regional Directors); (2) Identify high-potential employees through potential appraisals; (3) Assess readiness using 9-Box Grid (Performance vs Potential — Ready Now / 1-2 years / 3-5 years); (4) Develop successors via IDPs (Individual Development Plans) with targeted training, job rotations, stretch assignments, mentoring by current incumbents; (5) Monitor and review annually; (6) Execute smooth transition when vacancy arises."),
+NOTE("9-Box Grid: Performance (Y-axis) vs Potential (X-axis). Stars = high performance + high potential → top priority for senior roles. Rough Diamonds = low performance + high potential → develop urgently.")]),
+
+("1(e)","Why HRIS is important?",1.5,"May 2024","Topic 6: HRIS (Mod 1)","HRIS definition; Importance: efficiency, accuracy, analytics, compliance, strategic focus, employee experience",
+[SH("Why HRIS is Important"),
+B("HRIS (Human Resource Information System) is important because: (1) <b>Eliminates Paperwork:</b> Replaces manual record-keeping with digital management — saves time and dramatically reduces errors; (2) <b>Enables Real-Time Analytics:</b> HR dashboards on attrition, headcount, diversity, recruitment funnel enable data-driven, evidence-based decisions; (3) <b>Automates Payroll:</b> Accurate, timely salary processing eliminating manual calculation errors; (4) <b>Ensures Compliance:</b> Auto-generates statutory reports (PF ECR, ESI, TDS) and proactive compliance alerts preventing legal violations; (5) <b>Improves Employee Experience:</b> Self-service portal for payslips, leave applications, personal data updates; (6) <b>Frees HR for Strategy:</b> By automating administrative tasks, HRIS frees HR professionals to focus on strategic activities — talent management, workforce planning, culture building; (7) <b>Supports Global HR:</b> Cloud-based HRIS enables real-time HR management across multiple geographies.")]),
+
+("1(f)","What do you mean by induction?",1.5,"May 2024","Topic 3: Induction (Mod 2)","Induction/Orientation definition; vs Placement; What it covers; Importance; Buddy system",
+[SH("Induction / Orientation"),
+B("Induction (also called Orientation) is the formal process of receiving and welcoming new employees when they join an organisation — providing them with the basic information, tools, relationships and cultural understanding they need to settle in quickly, comfortably and productively. It makes the new employee feel part of the team from day one."),
+B("<b>What Induction Covers:</b> Company Introduction (history, vision, mission, values, products, structure); HR Policies (attendance, leave, code of conduct, dress code, IT usage); Role Introduction (job duties, KPIs, reporting manager, team members, tools); Facilities Tour (workstation, cafeteria, security, IT systems login); Benefits and Compensation (pay structure, PF/ESI, insurance, ESOPs); Buddy System (pairing new hire with experienced mentor for 30-90 days); Compliance Training (safety, POSH, data security)."),
+B("<b>Importance:</b> Faster productivity, reduced early turnover, better engagement, fewer errors, cultural alignment from day one."),
+NOTE("Induction vs Placement: Placement = assigning specific job role (WHAT to do). Induction = orienting to organisation (HOW it works and WHO is who). Induction vs Socialization: Induction = formal process. Socialization = ongoing informal cultural learning.")]),
+
+("1(g)","Differentiate between training and development.",1.5,"May 2024","Topic 1: Training (Mod 3)","Training vs Development: focus, time horizon, beneficiaries, methods, purpose",
+[SH("Training vs Development"),
+BL("<b>Focus:</b> Training = current job skills (what employee does NOW). Development = future capabilities (higher roles, future challenges)"),
+BL("<b>Time Horizon:</b> Training = short-term. Development = long-term"),
+BL("<b>Beneficiaries:</b> Training = operative, technical, junior employees. Development = managers, specialists, HiPos"),
+BL("<b>Methods:</b> Training = job-specific (OJT, coaching, vestibule, simulation). Development = broader (MBA, mentoring, executive education, cross-functional rotation, leadership assignments)"),
+BL("<b>Purpose:</b> Training = fix specific skill gap for current performance. Development = grow overall potential for future leadership"),
+BL("<b>Nature:</b> Training = reactive (addresses identified gap). Development = proactive (prepares for future)"),
+NOTE("Example training: Software tester trained in new automation testing tools for current project. Example development: Software tester enrolled in data science courses and given cross-functional project assignment to prepare for future Product Manager role.")]),
+
+("1(h)","What is meant by Grievance?",1.5,"May 2024","Topic 2: Grievance Handling (Mod 4)","Grievance definition (Keith Davis); Causes; Procedure; Effects of unresolved grievances",
+[SH("Grievance"),
+B("A grievance is any real or imagined feeling of personal injustice that an employee has regarding their employment situation. Keith Davis: 'A grievance is any real or imagined feeling of personal injustice which an employee has concerning his employment relationship.' Causes include: wages (underpayment, wrong grade), working conditions (unsafe, faulty tools), supervision (favouritism, harassment), promotion (denial, unfair transfers), leave (earned leave denied), discipline (perceived unfair punishment), interpersonal conflicts."),
+B("<b>Grievance Procedure (6 steps):</b> (1) Informal — Immediate Supervisor (24-48 hrs); (2) Written to HR Manager (3-5 days); (3) Senior Management (7-10 days); (4) Joint Grievance Committee with union reps (15 days); (5) Voluntary Arbitration (30 days); (6) Labour Court under Industrial Disputes Act 1947."),
+B("<b>Effects of Unresolved Grievances:</b> Reduced morale, absenteeism, turnover, poor quality, escalation to industrial disputes (strikes, go-slows), legal proceedings, damage to management-employee trust.")]),
+
+("1(i)","What do you mean by socialization in HRM?",1.5,"May 2024","Topic 3: Socialization (Mod 2)","Socialization definition; vs Induction; Van Maanen & Schein 3 stages; Importance",
+[SH("Socialization in HRM"),
+B("Organisational Socialization is the ongoing process through which a new employee learns the values, norms, culture, behaviours and social knowledge required to become a full, accepted and productive member of the organisation — going beyond formal induction to include the informal learning from daily interactions with colleagues."),
+B("Van Maanen & Schein's 3-Stage Socialization Model:"),
+BL("<b>Pre-arrival Stage:</b> Everything the new employee brings — prior work experience, personality, education, values and expectations. Happens before joining. Shapes initial mindset."),
+BL("<b>Encounter Stage:</b> The new employee confronts the real organisation — may experience 'reality shock' if actual culture, work style or management approach differs significantly from expectations. Critical adjustment period."),
+BL("<b>Metamorphosis Stage:</b> The employee adjusts to fit the organisation — masters the role, forms relationships, adopts cultural norms and becomes a fully accepted, productive member."),
+NOTE("Socialization is broader and longer than induction. Induction = formal, structured, time-bound process. Socialization = informal, ongoing, cultural integration. Successful socialization leads to high commitment, performance and retention.")]),
+
+("1(j)","What is corporate social responsibility?",1.5,"May 2024","Topic 9: CSR (Mod 4)","CSR definition; Carroll's Pyramid; Section 135 Companies Act; HR's CSR role",
+[SH("Corporate Social Responsibility (CSR)"),
+B("Corporate Social Responsibility (CSR) is the voluntary commitment by businesses to conduct themselves ethically, contribute to economic development and improve the quality of life of their employees, communities and society — while remaining profitable. Carroll's CSR Pyramid (1979): Economic (be profitable — the foundation) → Legal (obey all laws) → Ethical (be ethical beyond law) → Philanthropic (be a good corporate citizen — contribute to community welfare)."),
+B("India's Section 135, Companies Act 2013: Companies with annual turnover ≥ Rs 1,000 crore, net worth ≥ Rs 500 crore, or net profit ≥ Rs 5 crore must spend 2% of 3-year average net profit on CSR activities. Activities include education, health, gender equality, environmental sustainability, rural development, Swachh Bharat, Skill India."),
+B("HR's CSR Role: Employee well-being (EAPs, flexible work, extended benefits), D&I (diverse hiring and inclusive culture), fair employment practices (living wages, safe conditions), community skill development, Green HRM (sustainability, WFH reducing carbon footprint), ethical supply chain management.")]),
+]
+
+for args in may24_a:
+    Q(*args)
+
+st.append(sp(8))
+part_label("PART-B — Detailed Answer Questions (May 2024)")
+
+Q("2(a)","What is human resource management? Explain the objectives of HRM. Briefly explain the issues and challenges faced by HR managers in the 21st Century.",10,"May 2024","Topic 1: HRM Concept & Topic 4: Challenges (Mod 1)","HRM definition; Objectives: 4 categories; 21st Century challenges: digital transformation, talent war, remote workforce, mental health, D&I, data privacy, globalisation, succession planning",
+[SH("HRM — Definition, Objectives and 21st Century Challenges"),
+SSH2("DEFINITION"),
+B("HRM is the process of recruiting, selecting, training, developing, compensating and retaining employees to achieve organisational goals. Edwin Flippo: 'HRM is the planning, organising, directing and controlling of procurement, development, compensation, integration, maintenance and separation of human resources.' HRM treats employees as the most valuable asset — managing the complete lifecycle from hire to retire."),
+SSH2("OBJECTIVES OF HRM"),
+KP("1. Societal Objectives"),
+B("HR must ensure the organisation acts as a responsible corporate citizen — legal compliance with all labour laws (PF, ESI, Minimum Wages, Factories Act, POSH), ethical employment practices, pay equity, workplace safety, and CSR contributions. Failure to meet societal objectives leads to legal penalties, reputational damage and loss of social licence to operate."),
+KP("2. Organisational Objectives"),
+B("HR exists to serve the organisation's goals — providing the right number of people with the right skills at the right time; improving productivity through training and performance management; reducing HR costs through efficient processes and lower attrition; building organisational capability and competitive advantage through talent management and succession planning."),
+KP("3. Functional Objectives"),
+B("HR maintains the highest quality HR practices across all functional areas — recruitment quality, training effectiveness, compensation competitiveness, appraisal objectivity, grievance resolution speed. HR must continuously improve its own function's performance."),
+KP("4. Personal Objectives"),
+B("HR assists employees in achieving their personal career goals while simultaneously fulfilling organisational requirements — career counselling, individual development plans (IDPs), job rotation, mentoring, training opportunities, work-life balance — recognising that employee fulfilment and organisational performance are mutually reinforcing, not competing."),
+SSH2("ISSUES AND CHALLENGES IN THE 21st CENTURY"),
+KP("1. Digital Transformation"),
+B("Adopting HRIS, AI-based recruitment (HireVue), HR analytics, digital collaboration tools (Teams, Slack, Asana) requires HR to simultaneously become digitally literate AND manage the cultural change this brings. AI hiring tools introduce algorithmic bias risks; data from HRIS creates privacy obligations under GDPR/PDPA."),
+KP("2. Talent War — Attraction and Retention"),
+B("Global competition for specialised skills (AI/ML, cybersecurity, data science, cloud architecture). HR must build compelling employer brands, competitive total rewards (ESOPs, flexibility, purpose), and sophisticated engagement strategies. High attrition in knowledge industries is a constant pressure."),
+KP("3. Managing Remote and Hybrid Workforces"),
+B("Post-COVID normalisation of WFH and hybrid models requires new HR policies for output-based performance evaluation, virtual onboarding, digital culture building, equitable development opportunities for remote employees, and multi-jurisdictional legal compliance."),
+KP("4. Employee Mental Health and Burnout"),
+B("Digital work, always-on connectivity and information overload have created a mental health epidemic. HR must invest in EAPs, mental health days, flexible scheduling and psychological safety — while training managers to recognise and respond to burnout."),
+KP("5. Diversity, Equity and Inclusion (DEI)"),
+B("Building genuinely inclusive workplaces beyond token diversity hiring — addressing gender pay gaps, promoting diverse leadership, creating psychologically safe environments, providing unconscious bias training for managers."),
+KP("6. Data Privacy and Ethical AI"),
+B("Vast HR data collections create cybersecurity risks. AI tools can perpetuate bias. HR must implement data governance, ensure GDPR/PDPA compliance, audit AI for bias and maintain transparent, explainable HR decisions."),
+KP("7. Legal Complexity — New Labour Codes"),
+B("India's four new Labour Codes (Code on Wages, IR Code, Occupational Safety Code, Social Security Code) restructure employment law comprehensively. HR must continuously update compliance knowledge and practices."),
+KP("8. Succession Planning — Leadership Pipeline"),
+B("Many organisations fail to build adequate leadership pipelines. As baby boomers retire en masse (the 'silver tsunami'), identifying and developing future leaders through potential appraisals, succession charts and IDPs is a critical strategic challenge."),
+NOTE("21st Century HR challenges summary: Digital + Talent War + Remote + Mental Health + DEI + Data Privacy + Labour Codes + Succession. HR professionals must be: tech-savvy, data-driven, empathetic, legally expert, strategically agile, globally culturally aware.")])
+
+Q("2(b)","What is Job Analysis? Explain the components of job analysis.",5,"May 2024","Topic 4: Job Analysis (Mod 2)","Job Analysis definition (Flippo); Importance; Process; Job Description (contents); Job Specification (contents); JD vs JS comparison",
+[SH("Job Analysis and Its Components"),
+B("Job Analysis is the systematic process of studying and collecting information about the operations, duties, responsibilities, qualifications and working conditions of a specific job. Edwin Flippo: 'Job analysis is the process of studying and collecting information relating to the operations and responsibility of a specific job.' It is the foundation of all HR activities — recruitment, selection, training, performance management and compensation all depend on accurate job analysis."),
+SSH2("COMPONENTS OF JOB ANALYSIS"),
+SSH2("1. Job Description (JD)"),
+B("An organised factual statement of the duties, responsibilities, working conditions, and reporting relationships of a specific job. JD focuses on the JOB — answers 'What does this job require?' Edwin Flippo: 'Job Description is an organised factual statement of the duties and responsibilities of a specific job.'"),
+B("<b>JD Contents:</b>"),
+BL("Job Title and Code — standardised title (e.g., HR Manager, Senior Software Engineer)"),
+BL("Job Location and Department — where the job is performed"),
+BL("Job Summary — 2-3 line overview of the job's overall purpose"),
+BL("Duties and Tasks — comprehensive list of daily, weekly, monthly responsibilities with time estimates"),
+BL("Supervision Given and Received — reporting manager and direct reports"),
+BL("Tools and Equipment Used — specific machinery, software, systems"),
+BL("Working Conditions — location, environment, hazards, shift patterns"),
+BL("Pay Structure — basic pay, allowances, performance incentives"),
+SSH2("2. Job Specification (JS)"),
+B("A written statement of the minimum acceptable human qualities required to perform a job properly. JS focuses on the PERSON — answers 'Who should do this job?' Edwin Flippo: 'Job Specification is a statement of minimum acceptable human qualities necessary to perform a job properly.'"),
+B("<b>JS Contents:</b>"),
+BL("Educational Qualifications — minimum degree, professional certifications required"),
+BL("Work Experience — required years and type of experience"),
+BL("Technical Skills — specific technical competencies (programming languages, machinery operation, data analysis)"),
+BL("Soft Skills — communication, leadership, teamwork, problem-solving"),
+BL("Physical Fitness — strength, stamina requirements for physical jobs"),
+BL("Intelligence and Analytical Ability — reasoning, attention to detail, numerical aptitude"),
+BL("Personality Traits — emotional stability, adaptability, initiative, resilience"),
+BL("Special Requirements — language skills, driving licence, travel readiness, security clearance"),
+SSH2("JD vs JS — Comparison"),
+BL("<b>Focus:</b> JD = the JOB | JS = the PERSON"),
+BL("<b>Content:</b> JD = duties, conditions, working environment | JS = qualifications, skills, traits"),
+BL("<b>Question Answered:</b> JD = What does the job require? | JS = Who should do the job?"),
+BL("<b>Used For:</b> JD = job advertisements, performance standards, training content | JS = screening, shortlisting, selection test design, compensation justification"),
+NOTE("Both JD and JS are outputs of Job Analysis. JA is the PROCESS; JD+JS are the PRODUCTS. Flippo defines all three. Job Analysis feeds Job Evaluation (which uses JD and JS to determine the job's relative pay worth).")])
+
+Q("3(a)","What is career planning and development in HR? How do human resources departments facilitate career planning and development for employees?",5,"May 2024","Topic 5: Career Planning & Development (Mod 3)","Career Planning definition; Career Development definition; Process; Organisation's role; IDPs; Dual career ladder; Tuition reimbursement",
+[SH("Career Planning and Development in HR"),
+B("<b>Career Planning</b> is the deliberate process by which an individual sets career goals and creates a roadmap to achieve them. Process: self-assessment (SWOT, MBTI, interest inventories) → exploring career options → setting SMART goals (short-term 1-2 years, long-term 5-10 years) → action planning (education, certifications, networking) → implementation → periodic review and revision."),
+B("<b>Career Development</b> is the ongoing, lifelong process of managing career growth through skill acquisition, learning and gaining progressive experience — both the individual's and organisation's responsibility."),
+SSH2("HOW HR FACILITATES CAREER PLANNING AND DEVELOPMENT"),
+BL("<b>Career Counselling:</b> HR managers and trained counsellors help employees explore career options, understand their strengths and interests, and align personal goals with available opportunities within the organisation"),
+BL("<b>Individual Development Plans (IDPs):</b> Written action plans for each employee identifying skill development goals, specific training, experiences needed, and timeline — personalised roadmap created jointly by employee and manager"),
+BL("<b>Job Rotation Programmes:</b> Planned rotations across functions (Finance, Operations, HR, Sales) expose employees to different career paths and build the multi-functional skills required for advancement"),
+BL("<b>Mentoring and Coaching:</b> Pairing employees with experienced senior professionals who guide career growth, share institutional wisdom, and provide honest feedback on development areas"),
+BL("<b>Training and Development Programmes:</b> Skills training, leadership development programmes, executive education sponsorship — aligned with employees' stated career goals and organisational succession needs"),
+BL("<b>Succession Planning Integration:</b> Identifying high-potential employees through potential appraisals, placing them on succession planning charts, and creating targeted development paths for critical future roles"),
+BL("<b>Dual Career Ladders:</b> Creating parallel advancement paths — management track (for those who want to manage people) and technical/specialist track (for those who prefer deep expertise over people management) — preventing talented specialists from being forced into management roles they don't want"),
+BL("<b>Tuition Reimbursement:</b> Funding employees' external education (MBA, professional certifications, technical degrees) relevant to their career aspirations and organisational needs"),
+NOTE("Career Planning answers WHERE do I want to go? Career Development answers WHAT do I need to DO NOW to get there? Edgar Schein's 8 Career Anchors guide individual career choices. Career development feeds directly into Succession Planning — creating the talent pipeline leadership draws from.")])
+
+Q("3(b)","What do you understand by Compensation? What are the basic components of a compensation and reward system?",10,"May 2024","Topic 7: Employee Compensation (Mod 3)","Compensation definition; 3 categories of components; Factors determining compensation; New trends; Total Rewards philosophy",
+[SH("Compensation and Its Components"),
+SSH2("DEFINITION"),
+B("Employee Compensation is the total of all rewards — financial and non-financial — provided to employees in exchange for their services, contributions and performance. Milkovich and Newman: 'Compensation refers to all forms of financial returns and tangible services and benefits employees receive as part of an employment relationship.' Compensation serves three objectives: attracting the right talent, motivating existing employees to perform, and retaining valued people over time."),
+SSH2("COMPONENTS OF COMPENSATION AND REWARD SYSTEM"),
+SSH2("1. Direct Financial Compensation"),
+KP("a) Base Pay (Fixed Component)"),
+B("The core, fixed monthly salary determined by the job grade, skill level and market benchmarks. Paid regardless of performance output — provides financial security and predictability. Includes basic salary and any fixed grade-based allowances. Set through job evaluation (determining relative worth) and salary surveys (ensuring market competitiveness)."),
+KP("b) Variable Pay (Performance-Linked)"),
+B("Pay that varies with individual, team or organisational performance. Types: Annual Performance Bonus (linked to appraisal rating — typically 10-30% of annual salary for high performers), Sales Commissions (% of sales revenue generated — powerful incentive for sales roles), Piece-Rate Pay (manufacturing — per unit produced), Short-Term Incentives (STIs — quarterly cash rewards), Long-Term Incentives (LTIs — multi-year vesting stock options or cash plans). Variable pay creates direct motivational linkage — differentiating high performers from average performers with meaningful financial rewards."),
+KP("c) Allowances"),
+B("HRA (House Rent Allowance) — for accommodation costs, typically 40-50% of basic salary; DA (Dearness Allowance) — linked to Consumer Price Index (CPI), compensates for inflation; TA (Travel Allowance) — for commuting and official travel; LTA (Leave Travel Allowance) — for annual vacation travel; CCA (City Compensatory Allowance) — additional pay for high-cost cities (Mumbai, Bengaluru, Delhi); Medical Allowance — for routine medical expenses; Education Allowance — for children's schooling costs."),
+KP("d) ESOPs and Profit Sharing"),
+B("ESOPs (Employee Stock Ownership Plans) — right to purchase company shares below market price; powerful for alignment and long-term retention through vesting schedules ('golden handcuffs'). Profit Sharing — pre-defined % of annual company profits distributed; creates collective ownership mentality and motivates organisation-wide performance."),
+SSH2("2. Indirect Financial Compensation (Benefits)"),
+KP("a) Legally Required Benefits (Statutory)"),
+B("Provident Fund: Employer 12% + Employee 12% of basic salary — retirement security. ESI (Employees' State Insurance): Employer 3.25% + Employee 0.75% — medical, maternity, disability coverage for workers earning ≤ Rs 21,000/month. Gratuity: lump sum on 5+ years service (formula: 15 × last basic salary × years ÷ 26). Maternity Benefit: 26 weeks paid leave (1st-2nd child). Annual Bonus: minimum 8.33%, maximum 20% of wages under Payment of Bonus Act. Workmen's Compensation for work-related injuries."),
+KP("b) Voluntary Benefits"),
+B("Extended family health insurance (covering spouse, children, parents — beyond ESI scope); company housing or subsidised housing loans; company transport; subsidised canteen; gym/fitness; childcare/crèche at workplace; Employee Assistance Programmes (EAPs — mental health, personal counselling); tuition reimbursement; children's education scholarships; financial counselling; soft loans (marriage, medical emergency)."),
+SSH2("3. Non-Financial Compensation"),
+KP("a) Recognition and Psychological Rewards"),
+B("Employee of the Month awards, performance recognition ceremonies, peer appreciation platforms, long-service recognition — meeting Maslow's Level 4 (Esteem Needs) and creating psychological reinforcement of desired behaviours."),
+KP("b) Job Satisfaction Factors"),
+B("Job enrichment (adding responsibility and autonomy), challenging and meaningful work, opportunities for creativity and innovation, sense of purpose and impact — these intrinsic motivators (Herzberg's motivators) are more powerful long-term retention factors than purely financial rewards for knowledge workers."),
+KP("c) Work-Life Balance"),
+B("Flexible working hours (flexitime), work-from-home options, compressed workweeks, extended parental leave for both parents, mental health days, no-meeting Fridays — increasingly rated as critical compensation components by millennials and Gen Z, often valued more highly than equivalent cash."),
+KP("d) Career Development"),
+B("Training opportunities, mentoring programmes, coaching, leadership development programmes, clear promotion paths, educational sponsorship — investment in the employee's future that creates loyalty and engagement beyond any immediate financial reward."),
+SSH2("MODERN TOTAL REWARDS PHILOSOPHY"),
+B("Modern compensation design goes beyond salary to create a holistic Total Rewards proposition: Pay + Benefits + Learning & Development + Work Environment + Work-Life Balance + Purpose and Values. Leading organisations (Google, Microsoft, Infosys, Tata) design comprehensive total rewards that attract diverse talent, motivate peak performance and build the long-term loyalty essential for organisational success across market cycles."),
+NOTE("Key laws: Minimum Wages Act 1948 | Bonus Act 1965 (8.33-20%) | EPF Act 1952 (12%+12%) | ESI Act 1948 (3.25%+0.75%) | Gratuity Act 1972 (15×Salary×Years÷26) | Equal Remuneration Act 1976. ESOP: vesting schedule creates golden handcuffs. Total Rewards = Pay + Benefits + L&D + Work Environment + WLB.")])
+
+Q("4","Clarify how to enhance the effectiveness of employee development programs through Training Need Analysis (TNA) and explain various techniques for on-the-job and off-the-job training.",15,"May 2024","Topics 1 & 2: Training Process & Methods (Mod 3)","TNA definition; 3 levels; Methods; How TNA enhances programme effectiveness; OJT: 7 methods with examples; Off-JT: 8 methods with examples; Comparison",
+[SH("Enhancing Training Effectiveness through TNA — OJT and Off-JT Methods"),
+SSH2("TRAINING NEED ANALYSIS (TNA)"),
+B("Training Need Analysis (TNA) is the systematic process of identifying the gap between employees' current skills and the skills required to meet performance standards and organisational goals. It is the most critical first step of any training programme — without TNA, training may address the wrong gap, use the wrong methods, or train the wrong employees, wasting resources with zero performance improvement."),
+SSH2("THREE LEVELS OF TNA"),
+BL("<b>Organisational Analysis:</b> What are the business strategic goals? What capabilities does our strategy require? What training budget and climate exist? What compliance training is mandatory? Links training directly to business strategy."),
+BL("<b>Task/Operational Analysis:</b> What specific tasks does the job require? What KSAs are needed? Where are performance gaps between required and actual performance? Produces the content blueprint."),
+BL("<b>Individual Analysis:</b> Which specific employees need which training? Not all employees have identical gaps — training should be personalised based on performance data, self-assessments and manager input."),
+SSH2("HOW TNA ENHANCES PROGRAMME EFFECTIVENESS"),
+BL("<b>Precision Targeting:</b> Training addresses exactly the right skill gap for exactly the right employees — no wasted investment on unnecessary or misaligned content"),
+BL("<b>Maximises ROI:</b> Every training rupee addresses a documented performance gap with measurable expected improvement"),
+BL("<b>Selects Correct Methods:</b> TNA reveals the nature of the gap — technical skill, interpersonal skill, knowledge or attitude — each requiring a different training approach"),
+BL("<b>Motivates Learners:</b> Targeted, relevant training feels immediately applicable — employees engage more deeply with training they recognise addresses their actual development needs"),
+BL("<b>Enables Precise Evaluation:</b> With clear TNA, post-training evaluation (Kirkpatrick's 4 levels) can precisely measure whether the identified gap has been closed"),
+SSH2("ON-THE-JOB TRAINING (OJT) METHODS"),
+KP("1. Job Instruction Training (JIT)"),
+B("Structured 4-step method: (1) Prepare the learner (explain job importance, check prior knowledge); (2) Present the task (demonstrate, explain each step); (3) Learner tries (supervised practice); (4) Follow-up (observe performance, provide feedback, reduce supervision as competence grows). Used extensively in manufacturing, assembly line operations, retail service procedures."),
+KP("2. Coaching"),
+B("One-on-one relationship where a manager/senior continuously guides the employee through regular specific feedback, performance observations and targeted advice on improvement. Builds a supportive developmental relationship over time. Focuses on current job performance and immediate skill application. Example: Sales manager coaching a new rep on objection handling after joint sales calls."),
+KP("3. Mentoring"),
+B("Long-term relationship where an experienced senior (mentor) guides a junior (mentee) on career growth, professional values, organisational navigation and personal development — going beyond immediate job skills. Example: Senior R&D Manager mentoring a promising young engineer on research methodology, publishing academic papers, and building a technical reputation."),
+KP("4. Job Rotation"),
+B("Employees periodically moved across different jobs or departments at the same level — building multi-functional skills, reducing boredom, preparing future managers. Widely used in management trainee programmes. Example: TCS management trainee rotating through Development, Testing, Project Management and Client Relations over 18 months before permanent placement."),
+KP("5. Apprenticeship Training"),
+B("Formal multi-year programme combining OJT with classroom instruction — leads to recognised trade qualification. Duration: 1-5 years. Used in skilled trades (electricians, plumbers, carpenters, welders). Apprentices earn while learning — producing valuable output while developing expertise. Governed by the Apprentices Act 1961 in India."),
+KP("6. Understudy / Assistant-to"),
+B("Employee works directly under a senior manager to learn the complete role — preparing to eventually replace them. Used extensively in succession planning. Example: CFO's understudy attends all board meetings, financial reviews, and strategic planning sessions to learn the complete CFO role."),
+KP("7. Committee Assignment"),
+B("Trainees assigned to real committees — project steering committees, quality circles, innovation task forces — where they observe executive decision-making, contribute ideas and develop leadership, analytical and collaborative skills through genuine organisational participation."),
+SSH2("OFF-THE-JOB TRAINING METHODS"),
+KP("1. Classroom / Lecture Method"),
+B("Traditional instructor-led training in classroom settings — suitable for theoretical knowledge and large groups simultaneously. Limited by one-way communication and passive learning — participants receive information but have limited practice. Used for orientation, legal compliance training, product knowledge."),
+KP("2. Case Study Method"),
+B("Real or simulated business problems given to trainees to analyse, discuss and propose solutions — developing critical thinking, analytical reasoning and decision-making skills. Widely used in MBA programmes (Harvard case method). Example: HR trainees analyse how a company handled a major retrenchment exercise and evaluate better approaches."),
+KP("3. Role Play"),
+B("Trainees enact real-life workplace situations — customer complaint handling, performance counselling conversations, union negotiations, difficult employee discussions. Builds interpersonal, communication, empathy and conflict resolution skills through active practice in a safe environment. Feedback is provided immediately after each role play."),
+KP("4. Simulation Training"),
+B("Trainees practise in a replica of the real work environment — without real-world consequences of errors. Examples: Flight simulators (pilots), medical mannequins and surgical simulators (doctors, nurses), nuclear plant simulators (operators), virtual reality hazardous environment training (miners, construction workers), bank ATM simulator (bank clerks before handling real transactions)."),
+KP("5. Business / Management Games"),
+B("Teams compete by making business decisions (pricing, production, marketing, HR) in a simulated business environment — developing strategic thinking, financial literacy, teamwork and competitive awareness. Examples: Capstone Business Simulation, Marketplace simulation used in management programmes."),
+KP("6. Vestibule Training"),
+B("Training on actual equipment identical to what is used on the job — but in a separate training area, not the actual production floor. Reduces costly errors on real equipment while training is happening. Used in: banking (ATMs and banking software), aviation (gate operations), manufacturing (operating CNC machines)."),
+KP("7. E-Learning / Online Training"),
+B("Training delivered via internet through LMS platforms (Workday Learning, Cornerstone, Moodle), MOOCs (Coursera, edX, LinkedIn Learning, Udemy Business), webinars, virtual classrooms and video libraries. Self-paced, accessible 24/7, scalable to thousands simultaneously, cost-effective for large organisations with distributed workforces. Massively adopted post-COVID."),
+KP("8. Sensitivity Training / T-Group"),
+B("Unstructured group sessions where participants learn about themselves and group dynamics through self-reflection, peer feedback and interpersonal interaction — developing emotional intelligence, self-awareness, empathy and interpersonal skills. Used for leadership development and diversity/inclusion training."),
+SSH2("OJT vs OFF-JT COMPARISON"),
+BL("<b>Location:</b> OJT = actual workplace | Off-JT = training room, online, external venue"),
+BL("<b>Learning Style:</b> OJT = learning by doing | Off-JT = learning before doing"),
+BL("<b>Cost:</b> OJT = lower | Off-JT = higher"),
+BL("<b>Productivity Impact:</b> OJT = employee also produces while learning | Off-JT = employee away from work"),
+BL("<b>Suitable for:</b> OJT = practical, technical, operative skills | Off-JT = conceptual, managerial, complex, safety-critical skills"),
+BL("<b>Examples:</b> OJT = coaching, apprenticeship, job rotation | Off-JT = simulation, case study, e-learning"),
+NOTE("Best practice: Blended Learning — combining OJT and Off-JT for optimal skill development. Example: A new bank teller attends classroom training (Off-JT: banking procedures, fraud prevention) + vestibule training (Off-JT: ATM and banking software practice) + coached OJT on the actual branch floor under supervision.")])
+
+Q("5(a)","Explain how business ethics and corporate social responsibility are closely intertwined.",5,"May 2024","Topic 9: Ethics & CSR (Mod 4)","Business Ethics definition; CSR definition; Carroll's Pyramid; How ethics underpins CSR; HR's role in both; Examples",
+[SH("Business Ethics and CSR — How They Are Intertwined"),
+B("Business Ethics refers to the application of moral principles (right vs wrong, fair vs unfair, honest vs deceptive) to business decisions and practices. CSR is the voluntary commitment by businesses to conduct themselves ethically and contribute to society beyond their legal requirements. While ethics is the foundational principle (how should we behave?), CSR is its practical, outward-facing application (how do we demonstrate responsible behaviour to all stakeholders?)."),
+SSH2("HOW THEY ARE INTERTWINED"),
+BL("<b>Ethics is the Foundation of CSR:</b> Carroll's CSR Pyramid shows Economic → Legal → Ethical → Philanthropic. The third tier (Ethical) explicitly recognises that beyond compliance, organisations must act ethically — treating employees, customers, suppliers and communities fairly even when not legally required to do so. CSR without underlying ethics is mere reputation management and 'greenwashing.'"),
+BL("<b>Fair Employment Practices:</b> Ethical HR practices — equal pay for equal work, merit-based hiring and promotion, safe working conditions, anti-discrimination policies, whistle-blower protection — ARE the ethical dimension of CSR applied to the workforce. A company claiming CSR credentials while having a gender pay gap or unsafe factory is ethically incoherent."),
+BL("<b>Transparent Governance:</b> Ethical business requires transparent financial reporting, accurate disclosure and honest stakeholder communication. CSR reporting (annual CSR reports, ESG disclosures) is the organisational commitment to transparency and accountability — requiring ethical governance as its prerequisite."),
+BL("<b>Supply Chain Ethics:</b> Ethical companies extend their values to their supply chain — refusing to do business with suppliers using child labour, forced labour or unsafe working conditions. This supply chain ethics is a core CSR commitment — organisational responsibility doesn't stop at the company's own gates."),
+BL("<b>Environmental Responsibility:</b> Ethical business recognises that environmental harm imposes costs on society that are not borne by the company ('negative externalities'). CSR environmental initiatives — reducing emissions, managing waste responsibly, conserving water — are the ethical response to this recognition."),
+BL("<b>POSH Act Compliance:</b> Workplace safety from harassment is simultaneously an ethical HR obligation and a CSR commitment to employee dignity and well-being."),
+B("In summary, ethics is the internal moral compass guiding all business decisions; CSR is the external, stakeholder-visible expression of those ethical values in practice. An organisation cannot credibly claim CSR commitment without genuine ethical foundations in its leadership, governance, employment practices and stakeholder relationships."),
+NOTE("Carroll's CSR Pyramid (1979): Economic (profitable) → Legal (compliant) → Ethical (beyond law) → Philanthropic (contribution). India's Section 135: 2% of net profit mandatory CSR. Bhopal Gas Tragedy (Dec 3, 1984) = catastrophic failure of both ethics and CSR in industrial safety.")])
+
+Q("5(b)","What are the various objectives of performance management? Explain any two methods of performance appraisal.",10,"May 2024","Topic 7: PMS (Mod 2)","PMS definition; Objectives of performance management (8); MBO in depth; 360-Degree Feedback in depth; Comparison",
+[SH("Objectives of Performance Management and Appraisal Methods"),
+SSH2("OBJECTIVES OF PERFORMANCE MANAGEMENT"),
+BL("<b>1. Provide Performance Feedback:</b> Give employees clear information about their performance strengths and improvement areas — enabling self-awareness and targeted development. Without feedback, improvement is impossible."),
+BL("<b>2. Identify Training and Development Needs:</b> Performance gaps revealed by appraisals identify exactly what skills employees need to develop — feeding directly into TNA and individual development plans."),
+BL("<b>3. Support HR Decisions:</b> Performance appraisal provides the documented evidence base for merit increment amounts, performance bonus calculations, promotion decisions, transfers, lateral moves and, when necessary, disciplinary actions or termination."),
+BL("<b>4. Motivate Employees through Recognition:</b> Formal, documented recognition of excellent performance — acknowledgement of achievement, public celebration of results — is a powerful intrinsic motivator that reinforces high-performance behaviours."),
+BL("<b>5. Align Individual and Organisational Goals:</b> The goal-setting component of PMS cascades organisational strategic goals down to individual targets — ensuring every employee's daily efforts directly contribute to the organisation's strategic priorities."),
+BL("<b>6. Support Succession Planning:</b> Consistent high performance across multiple appraisal periods identifies candidates for succession planning — the talent pipeline for future leadership roles."),
+BL("<b>7. Improve Manager-Employee Communication:</b> Structured regular performance conversations — check-ins, mid-year reviews, formal appraisals — build stronger, more open and trusting manager-employee relationships."),
+BL("<b>8. Create Legal Documentation:</b> Documented performance history protects the organisation in employment disputes — demonstrating that terminations were performance-based (with documented evidence), not discriminatory."),
+SSH2("METHOD 1: MBO — MANAGEMENT BY OBJECTIVES (Peter Drucker, 1954)"),
+B("Concept: Manager and employee jointly set SMART goals at period start. Performance evaluated against those mutually agreed targets — not subjective trait ratings. Core principle: people work most effectively toward goals they helped set."),
+B("Process: (1) Organisational goals set at senior level; (2) Cascaded to departmental objectives; (3) Manager and employee jointly set individual SMART objectives — collaborative conversation, not imposed targets; (4) Action plans created; (5) Regular progress reviews (monthly/quarterly); (6) Final evaluation against each stated objective."),
+BL("<b>Advantages:</b> High ownership (joint goal-setting), clear expectations, objective evaluation, perfect alignment, strong motivation (Locke & Latham Goal-Setting Theory), improved communication, supports development"),
+BL("<b>Limitations:</b> Time-intensive, goals can become rigid if conditions change, quantitative bias (important qualitative contributions undervalued), risk of goal gaming (easy targets set deliberately)"),
+SSH2("METHOD 2: 360-DEGREE FEEDBACK"),
+B("Concept: Performance feedback collected systematically from ALL relevant directions: Self-assessment (employee rates their own performance), Superior (manager's traditional rating), Subordinates (team members rate their manager — upward feedback), Peers (colleagues at the same level — lateral feedback), and Customers (internal and external client ratings). Creates a comprehensive, multi-perspective picture of performance from all stakeholder viewpoints."),
+B("How it works: HR distributes standardised questionnaires to all rater groups (anonymously for subordinates and peers to encourage honest responses). Responses compiled by HR into a feedback report. Report shared with employee and discussed with manager or HR coach. Development plan created based on multi-source insights."),
+BL("<b>Advantages:</b> Most comprehensive appraisal method; reduces single-rater bias (manager alone may have limited or biased view); captures interpersonal, leadership and teamwork competencies invisible to the manager; particularly powerful for managerial and leadership roles; builds self-awareness through the mirror of others' perceptions; reduces the power of any single evaluator's bias"),
+BL("<b>Limitations:</b> Requires high-trust, psychologically safe culture for honest feedback (in low-trust environments, subordinates give overly positive ratings to avoid manager retaliation); time-intensive to administer across all rater groups; results must be handled with strict professional confidentiality; may be politically manipulated (peers giving inflated ratings to friends, harsh ratings to rivals)"),
+NOTE("MBO = Peter Drucker (1954). MBO's modern evolution = OKRs (Google/Intel — more ambitious, more transparent, quarterly). 360-degree is most comprehensive and most widely used for leadership development. MBO is most widely used for all employee goals (especially for managerial and professional roles).")])
+
+Q("6(a)","What is Recruitment? Explain various sources of recruitment in detail.",10,"May 2024","Topic 1: Recruitment (Mod 2)","Recruitment definition (Flippo); Positive process; Internal sources: 6 in detail; External sources: 7 in detail; Advantages and disadvantages; E-Recruitment; Balanced strategy",
+[SH("Recruitment and Sources"),
+B("Recruitment is the process of searching for prospective employees and stimulating them to apply for jobs. Edwin Flippo: 'Recruitment is the process of searching for prospective employees and stimulating them to apply for jobs.' It is a POSITIVE process — attracting as many qualified candidates as possible to build a large talent pool. Recruitment INVITES; Selection ELIMINATES."),
+SSH2("INTERNAL SOURCES"),
+KP("1. Promotions"),
+B("Moving existing employees to higher-level positions with greater responsibility, authority, status and pay. Most motivating form of internal recruitment — visible proof that performance and loyalty are rewarded. Creates a ripple of motivation across the workforce. Example: Senior Analyst promoted to Manager when the Manager moves to a Director role."),
+KP("2. Transfers"),
+B("Moving employees between departments, functions or geographical locations at the same level. Fills vacancies in understaffed areas while relieving overstaffed ones. Exposes employees to cross-functional experience valuable for future advancement. Example: Finance executive transferred from Delhi office to Bengaluru to fill a key vacancy."),
+KP("3. Employee Referrals"),
+B("Existing employees recommend candidates from their networks — former colleagues, classmates, professional contacts. Organisations offer referral bonuses upon successful hire and probation completion. Referred candidates show superior cultural fit, faster productivity ramp-up and higher 1-year retention rates than most other sources."),
+KP("4. Internal Job Postings"),
+B("Vacancies announced on company intranet, HR portals and notice boards — employees voluntarily apply for open roles. Enables career mobility within the organisation. Employees who haven't been considered for promotion by their manager can proactively pursue suitable opportunities across the organisation."),
+KP("5. Job Rotation (Pipeline)"),
+B("Employees systematically rotated across functions through planned rotation programmes — developing multi-functional skills qualifying them for different vacancies. Rotation is simultaneously a development strategy and an internal recruitment pipeline builder."),
+KP("6. Recalls from Layoffs"),
+B("Previously laid-off employees with strong track records recalled when business recovers. Already familiar with culture, processes, systems and colleagues — minimal re-onboarding required. Demonstrates good faith to the broader workforce."),
+B("<b>Advantages:</b> Cost-effective, faster, reduced risk (known performance history), boosts morale, no cultural training needed, creates career paths. <b>Disadvantages:</b> Limited pool, no fresh ideas, internal politics, creates chain vacancies, perpetuates culture (problematic if change is needed)."),
+SSH2("EXTERNAL SOURCES"),
+KP("1. Job Portals and Online Advertising"),
+B("Naukri.com, LinkedIn, Indeed, Monster, Shine.com — massive instant reach to active job seekers. AI-powered ATS systems auto-screen applications using keyword matching. LinkedIn additionally enables proactive passive candidate outreach — approaching talented employed professionals who match the profile exactly."),
+KP("2. Campus Recruitment"),
+B("Visiting universities, IITs, IIMs, engineering colleges, management institutes for pre-placement offers and campus drives. Brings young, technically current, trainable talent. Large IT companies (TCS, Infosys, Wipro, HCL) and FMCGs hire tens of thousands annually through campus programmes."),
+KP("3. Recruitment Agencies and Executive Search"),
+B("Placement agencies (TeamLease, Adecco, Randstad) pre-screen and match candidates. Executive search firms (Michael Page, Spencer Stuart) proactively identify and approach senior executives. Saves employer time significantly. Fee: typically 8-15% of annual CTC."),
+KP("4. Walk-in Interviews"),
+B("Candidates publicly invited to visit for direct application and immediate interviews. Effective for mass hiring of sales executives, call centre agents, factory workers and administrative staff. Cost-effective for employers, accessible for candidates."),
+KP("5. Social Media Recruiting"),
+B("LinkedIn (professional networking and passive candidate sourcing), Instagram and Twitter (employer branding and reaching younger Gen Z candidates). Social media reaches passive candidates — the largest pool of talented professionals who are employed but potentially open to better opportunities."),
+KP("6. AI-Based Recruitment Tools"),
+B("ATS (Applicant Tracking Systems) auto-screen resumes by keyword and qualification matching. Chatbots (HireVue, Mya) conduct initial asynchronous screening interviews. Video AI analyses verbal content, tone and key competency indicators. Predictive analytics identifies which sourcing channels produce the best long-term performers. Dramatically reduces time-to-hire and cost-per-hire for high-volume positions."),
+KP("7. Labour Contractors"),
+B("Contractual workers for seasonal, project-based or temporary needs — manufacturing, construction, hospitality, agriculture. Provides workforce flexibility without long-term employment commitments."),
+B("<b>Advantages:</b> Fresh talent, new ideas, wider choice, diversity, specialised skills, supports rapid growth. <b>Disadvantages:</b> Expensive, time-consuming, higher risk of bad hire, longer onboarding, may demotivate internal employees."),
+NOTE("Flippo's Recruitment definition. Positive (attract many) vs Selection's Negative (eliminate unsuitable). Best balanced strategy: Internal first policy + External for specialised roles, senior leadership, diversity targets, rapid growth. Modern trends: Employer Branding, Gig Economy, AI-driven passive candidate sourcing.")])
+
+Q("6(b)","What is industrial relations? Explain the objectives of industrial relations in detail.",5,"May 2024","Topic 1: Industrial Relations (Mod 4)","IR definition; Dunlop's Systems Theory; Parties: Employer, Workers/Union, Government; Objectives; Scope",
+[SH("Industrial Relations and Its Objectives"),
+B("Industrial Relations (IR) refers to the complex system of relationships between employers (management), employees (workers/unions), and the government in the context of work and employment. It governs the rules and procedures for determining wages, working conditions, resolving conflicts and maintaining industrial peace. V.B. Singh: 'Industrial Relations are a complex web of relationships, attitudes and approaches developed between management and workers.'"),
+B("Dunlop's IR Systems Theory (1958): IR is a subsystem with three actors — Employers, Workers/Unions, and Government — operating within a shared ideology and generating a body of rules governing the workplace."),
+SSH2("OBJECTIVES OF INDUSTRIAL RELATIONS"),
+BL("<b>1. Maintain Industrial Peace and Harmony:</b> The primary objective — prevent work stoppages, strikes, lockouts and disruptions that damage productivity, livelihoods and the broader economy. Industrial peace creates the stable environment for sustained business performance and employee well-being."),
+BL("<b>2. Protect the Interests of Employers and Employees:</b> Ensure that both management's right to manage the enterprise productively AND workers' rights to fair wages, safe conditions and dignified treatment are respected and protected simultaneously."),
+BL("<b>3. Promote Collective Bargaining:</b> Establish and maintain effective collective bargaining between organised workers (through unions) and management as the primary, preferred mechanism for resolving differences over wages, conditions and working arrangements."),
+BL("<b>4. Avoid Industrial Conflict:</b> Prevent and resolve strikes, lockouts, go-slows, ghearos and boycotts — forms of industrial action that damage all stakeholders and can have severe economic and social consequences."),
+BL("<b>5. Raise Productivity and Improve Quality of Work Life:</b> Healthy IR — where employees feel treated fairly, are motivated and engaged — directly produces higher productivity, better quality and greater innovation."),
+BL("<b>6. Ensure Legal Compliance:</b> Ensure all employment relationships comply with the Industrial Disputes Act 1947, Factories Act 1948, Trade Unions Act 1926, and all other applicable labour legislation."),
+BL("<b>7. Develop Democratic Management:</b> Promote workers' participation in management through Works Committees, joint management councils, suggestion schemes and other participative mechanisms — giving workers a meaningful voice in decisions that affect them."),
+BL("<b>8. Build Mutual Trust and Understanding:</b> Foster genuine respect and trust between management and employees — recognising their interdependence and creating a workplace culture of cooperation rather than adversarial conflict."),
+NOTE("Dunlop's 3 actors: Employer, Workers/Union, Government. Approaches: Unitary (one team, no conflict), Pluralist (multiple groups, conflict is normal), Marxist (class conflict), Systems (Dunlop — IR as a system). Scope: Labour-Management Relations, Labour Legislation, Trade Unions, Collective Bargaining, Grievance Handling, Dispute Resolution, Workers' Participation.")])
+
+Q("7","What is human resource planning? What is its importance? Explain the process of human resource planning.",15,"May 2024","Topic 5: HR Planning (Mod 1)","HRP definition; Importance (9 points); 8-step process in depth; HR forecasting techniques",
+[SH("Human Resource Planning — Definition, Importance and Process"),
+SSH2("DEFINITION"),
+B("Human Resource Planning (HRP) is the systematic, proactive process of ensuring the right number of employees with the right skills, competencies and experience are available at the right time, at the right place, and at the right cost to fulfil the organisation's short-term and long-term strategic objectives. It translates business plans into human capital requirements. Simple Formula: HR Gap = Future Demand − Current Internal Supply = Deficit (recruit/develop) or Surplus (redeploy/VRS)."),
+SSH2("IMPORTANCE OF HRP"),
+BL("<b>1. Prevents Talent Shortage:</b> Identifies future skill requirements early — allowing proactive recruitment, development and succession planning rather than costly emergency hiring when vacancies arise unexpectedly"),
+BL("<b>2. Prevents Costly Surplus:</b> Forecasts when workforce may exceed needs — enabling planned action (natural attrition, VRS, redeployment) rather than reactive mass redundancies"),
+BL("<b>3. Strategic Alignment:</b> Ensures the organisation has the human capability to execute its business strategy — whether expansion, digital transformation, internationalisation or product innovation"),
+BL("<b>4. Reduces Recruitment Costs:</b> Proactive planning replaces reactive emergency hiring — internal talent identification, planned campus drives and structured recruitment reduce cost-per-hire"),
+BL("<b>5. Enables Planned Training:</b> Identifies skill gaps early — creating time for structured, effective training and development rather than rushed emergency upskilling"),
+BL("<b>6. Supports Succession Planning:</b> Identifies and prepares future leaders before vacancies arise — ensuring business continuity and avoiding the disruption and cost of prolonged leadership vacancies"),
+BL("<b>7. Improves Diversity Planning:</b> Enables conscious, planned recruitment for gender, cultural and age diversity targets — creating more innovative, representative workforces"),
+BL("<b>8. Improves Productivity:</b> A right-sized, well-trained, engaged workforce operates at peak efficiency — HRP ensures the optimal workforce configuration for each business phase"),
+BL("<b>9. Facilitates Career Development:</b> When HRP identifies future role requirements, employees can be given development opportunities to prepare — improving engagement, retention and succession depth"),
+SSH2("PROCESS OF HUMAN RESOURCE PLANNING"),
+KP("Step 1 — Analyse Organisational Goals"),
+B("HRP begins with deep understanding of the business strategic plan — expansion into new markets, product launches, digital transformation, automation, restructuring or internationalisation. Each strategic direction creates specific, different HR implications. International expansion requires bilingual staff, cross-cultural competence and IHRM expertise. Automation requires more IT/maintenance specialists and fewer routine operators. HR translates every business goal into human capital requirements — headcount, skills, locations and timelines."),
+KP("Step 2 — Audit Current HR (Skills Inventory)"),
+B("Create a comprehensive, real-time skills inventory — a complete database of every existing employee covering: educational qualifications, technical and soft skills, work experience (internal and external), performance ratings, training completed, career aspirations, and expected retirement/attrition timeline. Modern HRIS platforms (SAP SuccessFactors, Workday) maintain dynamic, searchable skills inventories. Also assesses: current attrition rates, productivity levels, skill gap distribution across departments, age profile and succession risk for critical positions."),
+KP("Step 3 — Forecast HR Demand"),
+B("Estimate future HR needs — how many people, with what skills, in what roles, at what locations, at what point in time. Key techniques: Managerial Judgment (qualitative — manager estimates from experience), Delphi Technique (qualitative — structured anonymous expert consensus in iterative rounds), Trend Analysis (quantitative — extrapolating historical growth patterns), Regression Analysis (quantitative — mathematical relationship between business driver and HR headcount), Work Load Analysis (quantitative — total workload ÷ output per employee), Ratio Analysis (quantitative — historical staffing ratios applied to planned scale), Succession Planning Charts (for critical senior roles)."),
+KP("Step 4 — Forecast HR Supply"),
+B("Internal supply: promotions, transfers, employees returning from leave, trained candidates from succession plans — assessed through HRIS, succession charts and career development records. External supply: university graduation rates in relevant disciplines, industry attrition trends, competitor hiring patterns, immigration and government skill development programme outputs."),
+KP("Step 5 — Identify HR Gap"),
+B("Compare future demand vs available supply:"),
+BL("<b>HR Deficit (Demand > Supply):</b> External recruitment (job portals, campus, agencies), internal promotions, retraining and redeployment to new roles, contract/gig workers, outsourcing non-core functions, automation reducing headcount requirements"),
+BL("<b>HR Surplus (Supply > Demand):</b> Natural attrition (not replacing voluntary departures), VRS (Voluntary Retirement Scheme — attractive financial packages for early retirement), retraining for different roles, short-time working (reduced hours), temporary layoffs for cyclical industries"),
+KP("Step 6 — Formulate HR Action Plan"),
+B("Detailed plans: Recruitment Plan (how many, what roles, internal/external, channels, timeline, budget), Training and Upskilling Plan (which employees, what skills, what methods, timeline), Succession Development Plan (IDPs for succession candidates), Retention Plan (compensation, recognition, career development), Retrenchment Plan (if surplus — VRS packages, redeployment, timeline). Plans must be formally approved at appropriate organisational level."),
+KP("Step 7 — Implement the Action Plan"),
+B("Execute: publish job postings, launch campus drives, schedule and deliver training programmes, enrol succession candidates in leadership development, communicate VRS schemes and process applications, initiate redeployment processes. Implementation requires close coordination between HR, Finance (budgets and compensation), Operations (operational staffing needs and timing), and senior management (strategic alignment and decision authority)."),
+KP("Step 8 — Monitor, Evaluate and Control"),
+B("Track actual vs planned outcomes regularly (quarterly at minimum): Are vacancies being filled on time? Are skill gaps closing? Are attrition rates within forecasted levels? Are succession candidates progressing on their development plans? Are training programmes producing measurable skill improvements? HRIS real-time dashboards provide the monitoring data for agile plan adjustments. Annual HR Planning reviews revise the complete cycle based on updated business strategy and actual HR outcomes."),
+B("HRP is not a one-time event — it is a continuous strategic process that adapts to evolving business conditions, technological changes and human capital dynamics. Organisations that execute HRP rigorously and consistently build the talent foundation for sustained competitive advantage and business resilience."),
+NOTE("Key formula: HR Gap = Future Demand − Current Internal Supply. 7 forecasting techniques: MJ, Delphi (qualitative); Trend, Regression, Work Load, Ratio (quantitative); Succession Charts. Deficit response: recruit/develop/contract. Surplus response: VRS/retrain/natural attrition. HRP feeds: Recruitment, Training, Succession, Retention, Compensation, and Career Development.")])
+
+# BUILD THE PDF
+doc.build(st)
+print("PDF created successfully!")
