@@ -1,18 +1,14 @@
 class Solution(object):
-#     def findMissingAndRepeatedValues(self, grid):
-#         n=len(grid)
-#         set_=set()
-#         repeated=-1
-#         for row in grid:
-#             for num in row:
-#                 if num in set_:
-#                     repeated=num
-#                 set_.add(num)
+#     def maximumNumberOfStringPairs(self, words):
+#         """
+#         :type words: List[str]
+#         :rtype: int
+#         """
+#         a = {}
+#         for i in words:
+#             if i[::-1] in a:
+#                 a[i[::-1]] += 1
+#             else:
+#                 a[i] = 1
         
-#         missing=-1
-#         for num in range(1,n*n+1):
-#             if num not in set_:
-#                 missing=num
-#                 break
-
-#         return[repeated,missing]
+#         return len([i for i, j in a.items() if j == 2])
