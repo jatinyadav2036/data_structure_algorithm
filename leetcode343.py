@@ -28,3 +28,6 @@ class Solution(object):
 #             product=product * 3
 #             n=n-3
 #         return product * n
+
+s = Solution()
+print(s.integerBreak(19))
