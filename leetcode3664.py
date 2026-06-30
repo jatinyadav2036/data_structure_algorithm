@@ -1,7 +1,5 @@
 # 3664. Two-Letter Card Game
 
-from collections import Counter
-
 class Solution(object):
     def score(self, cards, x):
         cnt1 = [0] * 10
