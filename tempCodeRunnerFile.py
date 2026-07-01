@@ -1,10 +1,3 @@
- # def findMaximumScore(self, nums):
-    #     """
-    #     :type nums: List[int]
-    #     :rtype: int
-    #     """
-    #     res = ma = 0
-    #     for a in nums:
-    #         res += ma
-    #         ma = max(ma, a)
-    #     return res
+class Solution(object):
+#     def isPowerOfThree(self, n):
+#         return n > 0 and 1162261467 % n == 0
