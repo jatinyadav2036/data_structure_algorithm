@@ -1,3 +1,20 @@
+# 1711. Count Good Meals
+
+class Solution(object):
+    def countPairs(self, deliciousness):
+        MOD = 10**9 + 7
+        count = {}
+        ans = 0
+
+        for x in deliciousness:
+            power = 1
+            while power <= 1 << 21:
+                ans += count.get(power - x, 0)
+                power <<= 1
+            count[x] = count.get(x, 0) + 1
+
+        return ans % MOD
+    
 
 # class Solution(object):
 #     def countPairs(self, deliciousness):
