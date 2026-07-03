@@ -1,20 +1,8 @@
-class Solution(object):
-#     def maxSum(self, nums):
-#         posNumSum = set([num for num in nums if num > 0])
-#         return max(nums) if len(posNumSum) == 0 else sum(posNumSum)
-#         """
-#         :type nums: List[int]
-#         :rtype: int
-#         """
 
 # class Solution(object):
-#     def maxSum(self, nums):
-#         if max(nums)<=0:
-#             return max(nums)
-#         a=[]
-#         s=0
-#         for i in nums:
-#             if i>0 and i not in a:
-#                 a.append(i)
-#                 s+=i
-#         return s
+#     def isBoomerang(self, points):
+#         # Unpack everything in a single, clean line
+#         (x1, y1), (x2, y2), (x3, y3) = points
+
+#         # Your optimal slope check
+#         return (y2 - y1) * (x3 - x1) != (y3 - y1) * (x2 - x1)
