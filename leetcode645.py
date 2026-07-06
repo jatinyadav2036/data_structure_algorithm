@@ -6,8 +6,6 @@ class Solution(object):
         :type nums: List[int]
         :rtype: List[int]
         """
-        mn = min(nums)
-        mx = max(nums)
         lst = []
         test = list(range(1,len(nums)+1))
         for i in test:
