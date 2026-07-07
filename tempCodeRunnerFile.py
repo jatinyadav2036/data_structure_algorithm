@@ -1,12 +1,21 @@
 class Solution(object):
-#     def findErrorNums(self, nums):
-#         """
-#         :type nums: List[int]
-#         :rtype: List[int] [1,2,2,3]
-#         """
-#         expected_sum = sum(i for i in range(1, len(nums)+1))
-#         actual_sum = sum(nums)
-#         unique_sum = sum(set(nums))
-        
+#     def findThePrefixCommonArray(self, A, B):
+#         n = len(A)
 
-#         return [actual_sum - unique_sum, expected_sum - unique_sum]
+#         freq = [0] * (n + 1)
+#         ans = []
+#         common = 0
+
+#         for i in range(n):
+
+#             freq[A[i]] += 1
+#             if freq[A[i]] == 2:
+#                 common += 1
+
+#             freq[B[i]] += 1
+#             if freq[B[i]] == 2:
+#                 common += 1
+
+#             ans.append(common)
+
+#         return ans
