@@ -1,21 +1,29 @@
 class Solution(object):
-#     def findThePrefixCommonArray(self, A, B):
-#         n = len(A)
+#     def decrypt(self, code, k):
+#         """
+#         :type code: List[int]
+#         :type k: int
+#         :rtype: List[int]
+#         """
+#         ans=[0]*len(code)
 
-#         freq = [0] * (n + 1)
-#         ans = []
-#         common = 0
-
-#         for i in range(n):
-
-#             freq[A[i]] += 1
-#             if freq[A[i]] == 2:
-#                 common += 1
-
-#             freq[B[i]] += 1
-#             if freq[B[i]] == 2:
-#                 common += 1
-
-#             ans.append(common)
-
+#         if k==0:
+#             return ans
+        
+#         start=1
+#         end=k
+#         current_val=0
+        
+#         if k<0:
+#             start= len(code)-abs(k)
+#             end= len(code)-1
+#         for i in range(start,end+1):
+#             current_val+=code[i]
+        
+#         for i in range(len(code)):
+#             ans[i]=current_val
+#             current_val-=code[start%len(code)]
+#             current_val+=code[(end+1)%len(code)]
+#             start+=1
+#             end+=1
 #         return ans

@@ -20,7 +20,6 @@ print(s.findThePrefixCommonArray([1,3,2,4],[3,1,2,4]))
 # class Solution(object):
 #     def findThePrefixCommonArray(self, A, B):
 #         n = len(A)
-
 #         freq = [0] * (n + 1)
 #         ans = []
 #         common = 0
