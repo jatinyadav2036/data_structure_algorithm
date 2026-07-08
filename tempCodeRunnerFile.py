@@ -1,29 +1,19 @@
 class Solution(object):
-#     def decrypt(self, code, k):
-#         """
-#         :type code: List[int]
-#         :type k: int
-#         :rtype: List[int]
-#         """
-#         ans=[0]*len(code)
+#     def canPlaceFlowers(self, flowerbed, n):
+#         if n == 0:
+#             return True
 
-#         if k==0:
-#             return ans
-        
-#         start=1
-#         end=k
-#         current_val=0
-        
-#         if k<0:
-#             start= len(code)-abs(k)
-#             end= len(code)-1
-#         for i in range(start,end+1):
-#             current_val+=code[i]
-        
-#         for i in range(len(code)):
-#             ans[i]=current_val
-#             current_val-=code[start%len(code)]
-#             current_val+=code[(end+1)%len(code)]
-#             start+=1
-#             end+=1
-#         return ans
+#         m = len(flowerbed)
+
+#         for i in range(m):
+#             if (flowerbed[i] == 0 and
+#                 (i == 0 or flowerbed[i - 1] == 0) and
+#                 (i == m - 1 or flowerbed[i + 1] == 0)):
+
+#                 flowerbed[i] = 1
+#                 n -= 1
+
+#                 if n == 0:
+#                     return True
+
+#         return False
