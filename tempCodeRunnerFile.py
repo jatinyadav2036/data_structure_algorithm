@@ -1,19 +1,21 @@
 class Solution(object):
-#     def canPlaceFlowers(self, flowerbed, n):
-#         if n == 0:
-#             return True
+#     def longestAlternatingSubarray(self, nums, threshold):
+#         n = len(nums)
+#         ans = 0
+#         i = 0
 
-#         m = len(flowerbed)
+#         while i < n:
+#             if nums[i] % 2 or nums[i] > threshold:
+#                 i += 1
+#                 continue
 
-#         for i in range(m):
-#             if (flowerbed[i] == 0 and
-#                 (i == 0 or flowerbed[i - 1] == 0) and
-#                 (i == m - 1 or flowerbed[i + 1] == 0)):
+#             j = i
+#             while (j + 1 < n and
+#                    nums[j + 1] <= threshold and
+#                    nums[j] % 2 != nums[j + 1] % 2):
+#                 j += 1
 
-#                 flowerbed[i] = 1
-#                 n -= 1
+#             ans = max(ans, j - i + 1)
+#             i = j + 1
 
-#                 if n == 0:
-#                     return True
-
-#         return False
+#         return ans
