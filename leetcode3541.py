@@ -1,4 +1,25 @@
+# 3541. Find Most Frequent Vowel and Consonant
 class Solution(object):
+    def maxFreqSum(self, s):
+        """
+        :type s: str
+        :rtype: int
+        """
+        vowels = ['a', 'e' , 'i' , 'o' , 'u']
+        fv = {"a":0}
+        fc = {"b":0}
+        for i in s :
+            if i in vowels:
+                fv[i] = fv.get(i,0) + 1
+            else:
+                fc[i] = fc.get(i,0) + 1
+        mxv = max(fv.values()) 
+        mxc = max(fc.values())
+        return mxv + mxc
+
+        
+
+# class Solution(object):
 #     def maxFreqSum(self, s):
 #         mp={}
 #         for i in s:
