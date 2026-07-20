@@ -9,7 +9,7 @@ freq = {}
 for num in arr:
     freq[num] = freq.get(num, 0) + 1
 
-print(freq)
+print(freq[1])
 
 # Finding the duplicates
 
