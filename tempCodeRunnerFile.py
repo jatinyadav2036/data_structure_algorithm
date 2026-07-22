@@ -1,21 +1,17 @@
 class Solution(object):
-#     def maxFreqSum(self, s):
-#         mp={}
-#         for i in s:
-#             if i in mp:
-#                 mp[i]+=1
-#             else: mp[i]=1
-#             freq_c=0
-            
-#             freq_v=0
-            
-               
-#         for key,value in mp.items():
-#             if key in "aeiou":
-#                 if freq_v<value:
-#                     freq_v=value
-                    
-#             else:
-#                 if(freq_c<value):
-#                     freq_c=value
-#         return (freq_v)+(freq_c)
+#     def distMoney(self, money, children):
+#         if money < children:
+#             return -1
+
+#         money -= children
+#         ans = min(money // 7, children)
+
+#         money -= ans * 7
+#         children -= ans
+
+#         if children == 0 and money > 0:
+#             ans -= 1
+#         elif children == 1 and money == 3:
+#             ans -= 1
+
+#         return ans
